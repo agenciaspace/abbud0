@@ -1,0 +1,14 @@
+# Outputs gerados
+mapa_vegetacao.png
+mapa_vegetacao.pdf
+_tmp_bg.*
+
+# Python
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# Claude
+.claude/
