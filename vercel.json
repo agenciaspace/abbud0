@@ -1,0 +1,8 @@
+{
+  "functions": {
+    "api/extract.py": {
+      "runtime": "@vercel/python",
+      "maxDuration": 60
+    }
+  }
+}

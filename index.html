@@ -55,6 +55,20 @@
         .upload-zone .filename { color: var(--accent); font-weight: 600; font-size: 14px; margin-top: 12px; }
         .upload-zone input { display: none; }
 
+        .type-selector {
+            display: flex; gap: 12px; margin-top: 24px; justify-content: center;
+        }
+        .type-option {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--surface); border: 2px solid var(--border);
+            padding: 12px 24px; border-radius: 10px; cursor: pointer;
+            transition: all 0.15s; font-size: 14px;
+        }
+        .type-option:hover { border-color: var(--text2); }
+        .type-option.selected { border-color: var(--accent); background: rgba(76,175,80,0.08); }
+        .type-option input { display: none; }
+        .type-icon { font-size: 20px; }
+
         .btn {
             display: inline-flex; align-items: center; gap: 8px;
             padding: 12px 28px; border: none; border-radius: 8px;
@@ -111,6 +125,7 @@
         }
         .legend-item { display: flex; align-items: center; gap: 10px; }
         .legend-circle { width: 18px; height: 18px; border-radius: 50%; }
+        .legend-square { width: 18px; height: 18px; border-radius: 3px; }
         .legend-label .lcode { font-weight: 700; font-size: 13px; }
         .legend-label .lname { font-style: italic; font-size: 12px; color: var(--text2); }
         .legend-label .lcount { font-size: 11px; color: var(--text2); }
@@ -131,6 +146,7 @@
         @media (max-width: 768px) {
             .container { padding: 16px; }
             .upload-zone { padding: 40px 20px; }
+            .type-selector { flex-direction: column; align-items: center; }
         }
     </style>
 </head>
@@ -148,6 +164,23 @@
                 <div class="filename" id="fileName"></div>
                 <input type="file" id="fileInput" accept=".pdf">
             </div>
+            <div class="type-selector" id="typeSelector">
+                <label class="type-option selected" data-type="arvore">
+                    <input type="radio" name="plantType" value="arvore" checked>
+                    <span class="type-icon">&#127794;</span>
+                    <span>Arvores</span>
+                </label>
+                <label class="type-option" data-type="arbusto">
+                    <input type="radio" name="plantType" value="arbusto">
+                    <span class="type-icon">&#127807;</span>
+                    <span>Arbustos</span>
+                </label>
+                <label class="type-option" data-type="forracao">
+                    <input type="radio" name="plantType" value="forracao">
+                    <span class="type-icon">&#127811;</span>
+                    <span>Forracoes</span>
+                </label>
+            </div>
             <div class="species-config" id="speciesConfig"></div>
             <div class="actions"><button class="btn btn-primary" id="processBtn" disabled>Processar PDF</button></div>
             <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
@@ -157,9 +190,9 @@
         <div class="preview-section" id="previewSection">
             <div class="preview-card">
                 <div class="preview-header">
-                    <h2>Implantacao de Vegetacao</h2>
+                    <h2 id="previewTitle">Implantacao de Vegetacao</h2>
                     <div class="preview-stats">
-                        <div class="stat"><strong id="totalTrees">0</strong>arvores</div>
+                        <div class="stat"><strong id="totalItems">0</strong><span id="totalItemsLabel">itens</span></div>
                         <div class="stat"><strong id="totalSpecies">0</strong>especies</div>
                     </div>
                 </div>
@@ -178,81 +211,31 @@
     </div>
 
 <script>
-// Paleta de cores distintas para auto-atribuicao
 const COLOR_PALETTE = [
     '#E91E63', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0',
     '#00BCD4', '#F44336', '#8BC34A', '#3F51B5', '#FFEB3B',
     '#795548', '#607D8B', '#FF5722', '#009688', '#673AB7',
     '#CDDC39', '#03A9F4', '#E040FB', '#76FF03', '#FF6D00',
 ];
-const CIRCLE_R_RATIO = 0.0134;
 const CIRCLE_OPACITY = 0.75;
 
-// Tabela oficial de especies vegetais (776 siglas)
-const SPECIES_CODES = new Set([
-'ABHY','ABME','ABPI','ACAC','ACAU','ACHI','ACJA','ACPA','ACPO','ACPT','ACSE','ACSI','ACWI',
-'AEBL','AECH','AEFA','AEFO','AGAM','AGAN','AGAT','AGFR','AGMA','AGOD','AGST','AGVI','AGWE',
-'AIAC','ALAR','ALBL','ALBR','ALCA','ALCC','ALCU','ALHA','ALIN','ALMA','ALNU','ALPO','ALPU',
-'ALSA','ALSC','ALVE','ALVI','ALZE','ANAN','ANAT','ANBR','ANCL','ANCM','ANCO','ANCR','ANFA',
-'ANFR','ANLE','ANMA','ANMU','ANOC','ANPE','ANSQ','APSQ','ARAL','ARAN','ARBA','ARCA','ARCR',
-'ARDO','ARIN','ARJA','ARRO','ARSP','ARTR','ARVE','ASAC','ASDE','ASPO','ASSP','ATDU','ATEX',
-'ATSP','AUON','AVCA','AZIN','BABL','BABR','BAFO','BAGA','BAGR','BAMO','BARI','BAVA','BEEX',
-'BEGU','BERE','BINO','BIOR','BIPY','BOGA','BOGL','BOMA','BOSP','BOVI','BRAC','BRAR','BRNI',
-'BRPA','BRUN','BUCA','BUDA','BUMI','BYSE','CAAC','CAAR','CABA','CABR','CACA','CAEC','CAES',
-'CAFE','CAFI','CAGI','CAGL','CAGR','CAGU','CAHV','CAIM','CAIN','CAJA','CAJV','CALE','CALL',
-'CALP','CAMA','CAMG','CAMI','CAPE','CAPH','CAPM','CAPU','CARE','CARH','CASA','CASP','CASS',
-'CAST','CASY','CATW','CAUR','CAVE','CAVI','CAXA','CEFI','CEHI','CEHO','CENO','CEOD','CEPA',
-'CEPE','CEPR','CETO','CHAU','CHCA','CHCT','CHEA','CHEL','CHFI','CHFR','CHHU','CHLU','CHME',
-'CHMI','CHOB','CHON','CHPF','CHPI','CHSA','CHSE','CHSP','CHST','CHTE','CHTO','CIAU','CICA',
-'CIDE','CILG','CIMA','CIME','CIRE','CISI','CIUN','CIZE','CLBU','CLFL','CLFM','CLFR','CLGR',
-'CLMY','CLOR','CLRA','CLRO','CLSL','CLSP','CLTH','COAB','COAR','COAU','COAV','COER','COES',
-'COFR','COGI','COGL','COGO','COGR','COGU','COLA','CONN','CONU','COPR','COSC','COSE','COSL',
-'COSP','COSR','COST','COSU','COTB','COTE','COTO','COTR','COUV','COVA','COWE','CRBR','CRGR',
-'CRMA','CUSE','CYAL','CYAR','CYBI','CYCI','CYLA','CYMY','CYPA','CYPR','CYRE','CYVU','DAAC',
-'DALO','DANI','DECU','DEGI','DERE','DIAL','DICA','DIED','DIEL','DIIN','DIKA','DISP','DISQ',
-'DITH','DIVA','DOBU','DRAR','DRCA','DRDE','DRDR','DRFR','DRGL','DRGO','DRIN','DRMT','DRSU',
-'DRTR','DURE','DYLA','DYLE','DYMA','ELGU','ELOL','ELPU','ENCO','ENPA','ENTI','ENVE','EQSP',
-'ERCA','ERCR','ERFA','ERFU','ERIP','ERJA','ERMU','ERPU','ERSP','ERVE','ESLE','ETEL','EUAM',
-'EUBR','EUCA','EUCI','EUDE','EUED','EUES','EUIN','EUJA','EUJB','EUJM','EULA','EULE','EUMY',
-'EUOL','EUPC','EUPY','EUSM','EUTI','EUTR','EUUN','FEGL','FESE','FIBE','FICA','FIGU','FILY',
-'FIPA','FIPU','FITR','FOJA','FRAM','FRAR','FUGI','FUVI','GABR','GAIN','GAJA','GAMA','GEAM',
-'GEIN','GIBI','GRBA','GRRO','GUAU','GUGU','GUSA','GUUL','HAPA','HASP','HEAC','HEBE','HEBI',
-'HEBR','HECO','HEED','HEEP','HEFV','HEHE','HELA','HEOR','HEPE','HEPS','HERO','HEST','HEVE',
-'HIPE','HIPL','HIRS','HISC','HISY','HITI','HIVA','HOBA','HODU','HOSA','HOSG','HYCO','HYLA',
-'HYMA','HYST','HYVE','INLA','INMA','INVE','IPAL','IPAS','IPDI','IPHO','IPMU','IPPC','IREX',
-'IXCH','IXCO','IXMA','JABR','JACU','JAGR','JAMA','JAME','JAMI','JAMU','JANI','JAOF','JAPA',
-'JAPO','JAPU','JASA','JOPR','JUBR','JUCA','JUCH','JUHO','JUSA','KOBI','LABB','LAGL','LAIN',
-'LALA','LANO','LAPA','LASP','LECO','LEPI','LERU','LESP','LICH','LICI','LIGR','LIJA','LILU',
-'LISI','LISP','LIST','LITO','LOJA','LOLA','LOSP','LUDI','LYWE','MAAR','MABR','MACM','MACO',
-'MAEM','MAFL','MAGR','MAIN','MAIT','MAMO','MANY','MAPA','MASO','MASP','MATI','MAVI','MEAZ',
-'MEER','MELE','MICA','MICH','MICI','MISC','MODE','MONI','MOTO','MUAL','MUAR','MUBE','MUCA',
-'MUCH','MUEN','MUER','MUFR','MUPA','MUPH','MUSP','MUSU','MUZE','MYCA','MYCR','MYFR','MYPE',
-'MYPU','MYSP','MYTE','MYTR','MYUR','NADO','NECC','NECR','NEDE','NEFB','NEJO','NELA','NEMA',
-'NEME','NEMR','NENU','NEOL','NERI','NESS','NOBR','NYSP','OCCA','OCMU','OCOD','OEBA','OLEU',
-'ONSP','OPME','OPRO','ORAR','OSFR','OSIL','OUCA','PAAL','PAAN','PAAQ','PAED','PAJA','PALA',
-'PALM','PALU','PAPE','PARA','PARI','PASP','PATO','PATR','PAUT','PAWE','PEAL','PEAN','PEAR',
-'PEBL','PEDU','PEFU','PEGR','PESE','PESU','PEVO','PHAU','PHBI','PHCA','PHCN','PHCO','PHDA',
-'PHDN','PHED','PHER','PHET','PHFR','PHMA','PHME','PHNI','PHRN','PHRO','PHRU','PHSA','PHSC',
-'PHSO','PHSP','PHSU','PHTE','PHUN','PIAZ','PICR','PIDI','PIGO','PIKU','PIPS','PIRI','PIST',
-'PITO','PITT','PIUN','PLAC','PLAL','PLBI','PLCA','PLED','PLFO','PLOC','PLRE','PLRU','PLRV',
-'PLSP','POCA','POCC','POCO','POCR','POFR','POGU','POLA','POMA','PONI','POPA','PRCA','PRCE',
-'PRPA','PRPE','PRSA','PRSE','PRWI','PSAT','PSCA','PSGR','PSGU','PSMY','PTBR','PTEL','PTEM',
-'PTMA','PTNI','PTVI','PUGR','PYCM','PYCO','PYVE','RAFE','RAFO','RAGU','RAMA','RHAR','RHCA',
-'RHEX','RHGA','RHIN','RHSI','RICO','ROBA','ROBR','ROOL','RORE','ROSI','ROWI','RUCO','RUEQ',
-'SABA','SACY','SAGL','SAHU','SANO','SASA','SATL','SAZA','SCAR','SCMO','SCPA','SCPO','SCTE',
-'SEAU','SEBI','SEEL','SEGU','SEMA','SEMI','SEMU','SEPO','SESP','SOGR','SPAL','SPCA','SPCC',
-'SPCY','SPGI','SPLU','SPOR','SPPU','SPTU','STAD','STAU','STCA','STCH','STCR','STFL','STJU',
-'STMA','STPA','STRE','STSI','STSP','STST','SWFR','SWLA','SWMA','SYAR','SYBO','SYCO','SYCR',
-'SYCU','SYIN','SYMA','SYMC','SYOL','SYPS','SYRO','SYRU','SYSC','SYVU','TAAU','TAAV','TACA',
-'TACH','TADI','TAES','TAGU','TAHE','TAIM','TAIN','TALA','TAOC','TAOV','TAPE','TARO','TASE',
-'TAUM','TAVE','TECA','TEPA','TEST','TETR','TEVO','THAN','THAU','THCO','THER','THGL','THGR',
-'THMY','THPE','THPL','THPO','TIGA','TIGR','TIHO','TIMN','TIMO','TIMU','TIRA','TISP','TITI',
-'TOBU','TRBA','TRBR','TRFO','TRJA','TRMI','TRPA','TYLI','VAFR','VEME','VIAM','VIME','VIMO',
-'VIOL','VISP','VOTU','VRHI','VRIM','VRIN','VRSP','VTSP','WAFI','WARO','WICH','WIFL','WOBI',
-'XASP','XYBR','YUEL','YUFI','YUGL','ZAFU','ZARH','ZARI','ZAZA',
-]);
+const TYPE_CONFIG = {
+    arvore: {
+        label: 'Arvores', labelFull: 'Implantacao de Arvores',
+        unit: 'arvores', radiusRatio: 0.0134,
+    },
+    arbusto: {
+        label: 'Arbustos', labelFull: 'Implantacao de Arbustos',
+        unit: 'arbustos', radiusRatio: 0.006,
+    },
+    forracao: {
+        label: 'Forracoes', labelFull: 'Implantacao de Forracoes',
+        unit: 'areas',
+    },
+};
 
-let pdfFile = null, treeData = {}, speciesColors = {}, pageW = 0, pageH = 0;
+let pdfFile = null, extractedData = null, currentType = 'arvore';
+let pageW = 0, pageH = 0;
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -263,6 +246,15 @@ const statusText = $('statusText'), uploadSection = $('uploadSection');
 const previewSection = $('previewSection'), downloadSection = $('downloadSection');
 const mapCanvas = $('mapCanvas'), mapSvg = $('mapSvg'), legendBar = $('legendBar');
 const speciesConfig = $('speciesConfig');
+
+// Type selector
+document.querySelectorAll('.type-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+        document.querySelectorAll('.type-option').forEach(o => o.classList.remove('selected'));
+        opt.classList.add('selected');
+        currentType = opt.dataset.type;
+    });
+});
 
 dropZone.addEventListener('click', () => fileInput.click());
 dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
@@ -278,58 +270,88 @@ function handleFile(f) {
 
 function setProgress(p) { progressBar.classList.add('active'); progressFill.style.width = p + '%'; }
 
-function getColor(idx) { return COLOR_PALETTE[idx % COLOR_PALETTE.length]; }
+function createChip(color, label, count, isSquare) {
+    const chip = document.createElement('div');
+    chip.className = 'species-chip';
+    const dot = document.createElement('span');
+    dot.className = 'species-dot';
+    dot.style.background = color;
+    if (isSquare) dot.style.borderRadius = '3px';
+    const codeSpan = document.createElement('span');
+    codeSpan.className = 'code';
+    codeSpan.textContent = label;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'name';
+    nameSpan.textContent = '(' + count + ')';
+    chip.appendChild(dot);
+    chip.appendChild(codeSpan);
+    chip.appendChild(nameSpan);
+    return chip;
+}
+
+function createLegendItem(color, code, name, count, unit, isSquare) {
+    const el = document.createElement('div');
+    el.className = 'legend-item';
+    const symbol = document.createElement('span');
+    symbol.className = isSquare ? 'legend-square' : 'legend-circle';
+    symbol.style.background = color;
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'legend-label';
+    const codeSpan = document.createElement('span');
+    codeSpan.className = 'lcode';
+    codeSpan.textContent = code;
+    labelDiv.appendChild(codeSpan);
+    if (name) {
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'lname';
+        nameSpan.textContent = ' ' + name;
+        labelDiv.appendChild(nameSpan);
+    }
+    const countSpan = document.createElement('span');
+    countSpan.className = 'lcount';
+    countSpan.textContent = ' (' + count + ' ' + unit + ')';
+    labelDiv.appendChild(countSpan);
+    el.appendChild(symbol);
+    el.appendChild(labelDiv);
+    return el;
+}
 
 async function processPDF() {
     if (!pdfFile) return;
     processBtn.disabled = true;
-    setProgress(10); statusText.textContent = 'Carregando PDF...';
+    setProgress(10); statusText.textContent = 'Enviando PDF para processamento...';
+
+    const config = TYPE_CONFIG[currentType];
+
     try {
+        // Send PDF to API
+        const formData = new FormData();
+        formData.append('file', pdfFile);
+        formData.append('type', currentType);
+
+        setProgress(20);
+        const response = await fetch('/api/extract', {
+            method: 'POST',
+            body: formData,
+        });
+
+        if (!response.ok) {
+            const err = await response.json();
+            throw new Error(err.error || 'Server error: ' + response.status);
+        }
+
+        setProgress(50); statusText.textContent = 'Dados extraidos. Renderizando mapa...';
+        extractedData = await response.json();
+        pageW = extractedData.pageWidth;
+        pageH = extractedData.pageHeight;
+
+        // Render PDF background with PDF.js
+        setProgress(60); statusText.textContent = 'Renderizando planta base...';
         const buf = await pdfFile.arrayBuffer();
         const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-        setProgress(30); statusText.textContent = 'Extraindo dados...';
-
         const page = await pdf.getPage(1);
         const vp = page.getViewport({ scale: 1.0 });
-        pageW = vp.width; pageH = vp.height;
 
-        setProgress(40); statusText.textContent = 'Localizando especies...';
-
-        // Extrair texto e filtrar apenas siglas da tabela oficial
-        const tc = await page.getTextContent();
-        treeData = {};
-        for (const item of tc.items) {
-            const t = item.str.trim();
-            if (!SPECIES_CODES.has(t)) continue;
-            const [vx, vy] = vp.convertToViewportPoint(item.transform[4], item.transform[5]);
-            if (!treeData[t]) treeData[t] = [];
-            treeData[t].push({ x: vx, y: vy });
-        }
-
-        const legendCodes = Object.keys(treeData).sort();
-        const total = Object.values(treeData).reduce((s, a) => s + a.length, 0);
-
-        if (total === 0) {
-            statusText.textContent = 'Nenhuma especie da tabela oficial encontrada no PDF.';
-            processBtn.disabled = false; setProgress(0); progressBar.classList.remove('active'); return;
-        }
-
-        console.log('Especies encontradas:', legendCodes, '| Total:', total);
-
-        // Atribuir cores
-        speciesColors = {};
-        legendCodes.forEach((code, i) => { speciesColors[code] = getColor(i); });
-
-        // Mostrar chips das especies detectadas
-        speciesConfig.innerHTML = '';
-        for (const code of legendCodes) {
-            const cnt = treeData[code].length;
-            const chip = document.createElement('div'); chip.className = 'species-chip';
-            chip.innerHTML = `<span class="species-dot" style="background:${speciesColors[code]}"></span><span class="code">${code}</span><span class="name">(${cnt})</span>`;
-            speciesConfig.appendChild(chip);
-        }
-
-        setProgress(60); statusText.textContent = 'Renderizando planta...';
         const ctx = mapCanvas.getContext('2d');
         mapCanvas.width = vp.width; mapCanvas.height = vp.height;
         await page.render({ canvasContext: ctx, viewport: vp }).promise;
@@ -344,35 +366,88 @@ async function processPDF() {
         ctx.putImageData(imgData, 0, 0);
 
         setProgress(80); statusText.textContent = 'Desenhando vegetacao...';
-        const r = pageW * CIRCLE_R_RATIO;
-        mapSvg.setAttribute('viewBox', `0 0 ${pageW} ${pageH}`);
+
+        // Draw SVG overlay
+        mapSvg.setAttribute('viewBox', '0 0 ' + pageW + ' ' + pageH);
         mapSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-        mapSvg.innerHTML = '';
-        for (const [code, pos] of Object.entries(treeData)) {
-            for (const p of pos) {
-                const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', r);
-                c.setAttribute('fill', speciesColors[code]); c.setAttribute('fill-opacity', CIRCLE_OPACITY);
-                c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', 2.5);
-                mapSvg.appendChild(c);
+        while (mapSvg.firstChild) mapSvg.removeChild(mapSvg.firstChild);
+
+        let totalItems = 0, totalSpeciesCount = 0;
+
+        if (currentType === 'forracao') {
+            const areas = extractedData.areas;
+            for (const label of Object.keys(areas)) {
+                const areaInfo = areas[label];
+                totalSpeciesCount++;
+                for (const path of areaInfo.paths) {
+                    totalItems++;
+                    if (path.length < 2) continue;
+                    const dAttr = 'M ' + path.map(function(p) { return p[0] + ',' + p[1]; }).join(' L ') + ' Z';
+                    const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    el.setAttribute('d', dAttr);
+                    el.setAttribute('fill', areaInfo.color);
+                    el.setAttribute('fill-opacity', '0.6');
+                    el.setAttribute('stroke', areaInfo.color);
+                    el.setAttribute('stroke-width', '0.5');
+                    el.setAttribute('stroke-opacity', '0.3');
+                    mapSvg.appendChild(el);
+                }
+            }
+        } else {
+            const species = extractedData.species;
+            const r = pageW * config.radiusRatio;
+            const dashArray = currentType === 'arbusto' ? '4,2' : '';
+            for (const code of Object.keys(species)) {
+                const info = species[code];
+                totalSpeciesCount++;
+                for (const p of info.positions) {
+                    totalItems++;
+                    const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                    c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', r);
+                    c.setAttribute('fill', info.color); c.setAttribute('fill-opacity', String(CIRCLE_OPACITY));
+                    c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', '2.5');
+                    if (dashArray) c.setAttribute('stroke-dasharray', dashArray);
+                    mapSvg.appendChild(c);
+                }
+            }
+        }
+
+        // Show chips
+        while (speciesConfig.firstChild) speciesConfig.removeChild(speciesConfig.firstChild);
+        if (currentType === 'forracao') {
+            for (const label of Object.keys(extractedData.areas)) {
+                const info = extractedData.areas[label];
+                speciesConfig.appendChild(createChip(info.color, label, info.paths.length, true));
+            }
+        } else {
+            for (const code of Object.keys(extractedData.species)) {
+                const info = extractedData.species[code];
+                speciesConfig.appendChild(createChip(info.color, code, info.positions.length, false));
             }
         }
 
         // Legend
-        legendBar.innerHTML = '';
-        for (const code of legendCodes) {
-            const cnt = treeData[code].length;
-            if (!cnt) continue;
-            const el = document.createElement('div'); el.className = 'legend-item';
-            el.innerHTML = `<span class="legend-circle" style="background:${speciesColors[code]}"></span><div class="legend-label"><span class="lcode">${code}</span> <span class="lcount">(${cnt} un.)</span></div>`;
-            legendBar.appendChild(el);
+        while (legendBar.firstChild) legendBar.removeChild(legendBar.firstChild);
+        if (currentType === 'forracao') {
+            for (const label of Object.keys(extractedData.areas)) {
+                const info = extractedData.areas[label];
+                legendBar.appendChild(createLegendItem(info.color, label, '', info.paths.length, 'areas', true));
+            }
+        } else {
+            for (const code of Object.keys(extractedData.species)) {
+                const info = extractedData.species[code];
+                legendBar.appendChild(createLegendItem(info.color, code, info.name || '', info.positions.length, 'un.', false));
+            }
         }
 
-        $('totalTrees').textContent = total;
-        $('totalSpecies').textContent = legendCodes.length;
+        // Stats
+        $('previewTitle').textContent = config.labelFull;
+        $('totalItems').textContent = totalItems;
+        $('totalItemsLabel').textContent = config.unit;
+        $('totalSpecies').textContent = totalSpeciesCount;
 
         setProgress(100); statusText.textContent = '';
-        setTimeout(() => {
+        setTimeout(function() {
             uploadSection.style.display = 'none';
             previewSection.classList.add('active');
             downloadSection.classList.add('active');
@@ -388,80 +463,136 @@ async function processPDF() {
 function hexToRgb(h) { h = h.replace('#',''); return { r: parseInt(h.substring(0,2),16), g: parseInt(h.substring(2,4),16), b: parseInt(h.substring(4,6),16) }; }
 
 function renderComposite(scale) {
-    const w = pageW * scale, h = pageH * scale, r = pageW * CIRCLE_R_RATIO * scale;
-    const c = document.createElement('canvas'); c.width = w; c.height = h;
-    const ctx = c.getContext('2d');
+    var w = pageW * scale, h = pageH * scale;
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
     ctx.drawImage(mapCanvas, 0, 0, w, h);
-    for (const [code, positions] of Object.entries(treeData)) {
-        const rgb = hexToRgb(speciesColors[code]);
-        ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5 * scale;
-        for (const p of positions) {
-            ctx.beginPath(); ctx.arc(p.x * scale, p.y * scale, r, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${rgb.r},${rgb.g},${rgb.b},${CIRCLE_OPACITY})`; ctx.fill(); ctx.stroke();
+
+    var config = TYPE_CONFIG[currentType];
+
+    if (currentType === 'forracao') {
+        for (var label of Object.keys(extractedData.areas)) {
+            var info = extractedData.areas[label];
+            var rgb = hexToRgb(info.color);
+            ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.6)';
+            for (var path of info.paths) {
+                if (path.length < 3) continue;
+                ctx.beginPath();
+                ctx.moveTo(path[0][0] * scale, path[0][1] * scale);
+                for (var i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i][0] * scale, path[i][1] * scale);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+    } else {
+        var r = pageW * config.radiusRatio * scale;
+        for (var code of Object.keys(extractedData.species)) {
+            var info = extractedData.species[code];
+            var rgb = hexToRgb(info.color);
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5 * scale;
+            for (var p of info.positions) {
+                ctx.beginPath(); ctx.arc(p.x * scale, p.y * scale, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + CIRCLE_OPACITY + ')'; ctx.fill(); ctx.stroke();
+            }
         }
     }
     return c;
 }
 
+function getExportEntries() {
+    if (currentType === 'forracao') {
+        return Object.keys(extractedData.areas).map(function(label) {
+            var info = extractedData.areas[label];
+            return { key: label, color: info.color, count: info.paths.length, unit: 'areas', name: '' };
+        });
+    }
+    return Object.keys(extractedData.species).map(function(code) {
+        var info = extractedData.species[code];
+        return { key: code, color: info.color, count: info.positions.length, unit: 'un.', name: info.name || '' };
+    });
+}
+
 function exportPNG() {
-    const s = 2, mc = renderComposite(s);
-    const hH = 80, lH = 50, tH = hH + mc.height + lH;
-    const out = document.createElement('canvas'); out.width = mc.width; out.height = tH;
-    const ctx = out.getContext('2d');
+    var config = TYPE_CONFIG[currentType];
+    var s = 2, mc = renderComposite(s);
+    var hH = 80, lH = 50, tH = hH + mc.height + lH;
+    var out = document.createElement('canvas'); out.width = mc.width; out.height = tH;
+    var ctx = out.getContext('2d');
     ctx.fillStyle = 'white'; ctx.fillRect(0, 0, out.width, tH);
-    ctx.fillStyle = '#222'; ctx.font = `bold ${24*s}px Helvetica,Arial,sans-serif`; ctx.textAlign = 'center';
+    ctx.fillStyle = '#222'; ctx.font = 'bold ' + (24*s) + 'px Helvetica,Arial,sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('IMPLANTACAO DE VEGETACAO', out.width/2, 30*s);
-    ctx.fillStyle = '#777'; ctx.font = `${11*s}px Helvetica,Arial,sans-serif`;
-    ctx.fillText('Plano de Paisagismo - Mapa de Especies Arboreas', out.width/2, 48*s);
+    ctx.fillStyle = '#777'; ctx.font = (11*s) + 'px Helvetica,Arial,sans-serif';
+    ctx.fillText('Plano de Paisagismo - ' + config.labelFull, out.width/2, 48*s);
     ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(40*s, hH-2); ctx.lineTo(out.width-40*s, hH-2); ctx.stroke();
     ctx.drawImage(mc, 0, hH);
-    const lY = hH + mc.height + 8;
+    var lY = hH + mc.height + 8;
     ctx.beginPath(); ctx.moveTo(40*s, lY-6); ctx.lineTo(out.width-40*s, lY-6); ctx.stroke();
-    const entries = Object.entries(treeData).filter(([,v]) => v.length > 0);
-    const segW = out.width / entries.length;
-    entries.forEach(([code, pos], i) => {
-        const cx = segW*i + segW/2;
-        ctx.beginPath(); ctx.arc(cx-50*s, lY+12, 8*s, 0, Math.PI*2);
-        ctx.fillStyle = speciesColors[code]; ctx.fill();
-        ctx.fillStyle = '#333'; ctx.font = `bold ${10*s}px Helvetica,Arial,sans-serif`; ctx.textAlign = 'left';
-        ctx.fillText(`${code} (${pos.length} un.)`, cx-36*s, lY+16);
+
+    var entries = getExportEntries().filter(function(e) { return e.count > 0; });
+    var segW = out.width / Math.max(entries.length, 1);
+    entries.forEach(function(entry, i) {
+        var cx = segW*i + segW/2;
+        if (currentType === 'forracao') {
+            ctx.fillStyle = entry.color;
+            ctx.fillRect(cx-58*s, lY+4, 16*s, 16*s);
+        } else {
+            ctx.beginPath(); ctx.arc(cx-50*s, lY+12, 8*s, 0, Math.PI*2);
+            ctx.fillStyle = entry.color; ctx.fill();
+        }
+        ctx.fillStyle = '#333'; ctx.font = 'bold ' + (10*s) + 'px Helvetica,Arial,sans-serif'; ctx.textAlign = 'left';
+        var labelText = entry.name ? entry.key + '  ' + entry.name : entry.key;
+        ctx.fillText(labelText + ' (' + entry.count + ' ' + entry.unit + ')', cx-36*s, lY+16);
     });
-    out.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'mapa_vegetacao.png'; a.click(); }, 'image/png');
+    var suffix = currentType === 'forracao' ? 'forracoes' : (currentType === 'arbusto' ? 'arbustos' : 'arvores');
+    out.toBlob(function(b) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'mapa_' + suffix + '.png'; a.click(); }, 'image/png');
 }
 
 function exportPDF() {
-    const s = 1.5, comp = renderComposite(s);
-    const img = comp.toDataURL('image/jpeg', 0.90);
-    const { jsPDF } = window.jspdf;
-    const pw = comp.width*0.75, ph = comp.height*0.75, m = 40, hH = 50, lH = 40;
-    const tw = pw + m*2;
-    const doc = new jsPDF({ orientation: pw > ph ? 'landscape' : 'portrait', unit: 'pt', format: [tw, ph+hH+lH+m*2] });
+    var config = TYPE_CONFIG[currentType];
+    var s = 1.5, comp = renderComposite(s);
+    var img = comp.toDataURL('image/jpeg', 0.90);
+    var jsPDFLib = window.jspdf;
+    var pw = comp.width*0.75, ph = comp.height*0.75, m = 40, hH = 50, lH = 40;
+    var tw = pw + m*2;
+    var doc = new jsPDFLib.jsPDF({ orientation: pw > ph ? 'landscape' : 'portrait', unit: 'pt', format: [tw, ph+hH+lH+m*2] });
     doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(34,34,34);
     doc.text('IMPLANTACAO DE VEGETACAO', tw/2, m+20, { align: 'center' });
     doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(119,119,119);
-    doc.text('Plano de Paisagismo - Mapa de Especies Arboreas', tw/2, m+34, { align: 'center' });
+    doc.text('Plano de Paisagismo - ' + config.labelFull, tw/2, m+34, { align: 'center' });
     doc.setDrawColor(221,221,221); doc.line(m, m+hH-4, tw-m, m+hH-4);
     doc.addImage(img, 'JPEG', m, m+hH, pw, ph);
-    const lY = m+hH+ph+8; doc.line(m, lY-4, tw-m, lY-4);
-    const entries = Object.entries(treeData).filter(([,v]) => v.length > 0);
-    const segW = pw / entries.length;
-    entries.forEach(([code, pos], i) => {
-        const cx = m + segW*i + segW/2, rgb = hexToRgb(speciesColors[code]);
-        doc.setFillColor(rgb.r, rgb.g, rgb.b); doc.circle(cx-40, lY+8, 5, 'F');
+    var lY = m+hH+ph+8; doc.line(m, lY-4, tw-m, lY-4);
+
+    var entries = getExportEntries().filter(function(e) { return e.count > 0; });
+    var segW = pw / Math.max(entries.length, 1);
+    entries.forEach(function(entry, i) {
+        var cx = m + segW*i + segW/2, rgb = hexToRgb(entry.color);
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        if (currentType === 'forracao') {
+            doc.rect(cx-44, lY+3, 10, 10, 'F');
+        } else {
+            doc.circle(cx-40, lY+8, 5, 'F');
+        }
         doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(51,51,51);
-        doc.text(`${code} (${pos.length} un.)`, cx-28, lY+11);
+        var labelText = entry.name ? entry.key + '  ' + entry.name : entry.key;
+        doc.text(labelText + ' (' + entry.count + ' ' + entry.unit + ')', cx-28, lY+11);
     });
     doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(160,160,160);
     doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', tw/2, doc.internal.pageSize.getHeight()-10, { align: 'center' });
-    doc.save('mapa_vegetacao.pdf');
+    var suffix = currentType === 'forracao' ? 'forracoes' : (currentType === 'arbusto' ? 'arbustos' : 'arvores');
+    doc.save('mapa_' + suffix + '.pdf');
 }
 
 function resetApp() {
-    pdfFile = null; treeData = {}; speciesColors = {};
+    pdfFile = null; extractedData = null;
     fileInput.value = ''; fileNameEl.textContent = '';
-    processBtn.disabled = true; mapSvg.innerHTML = ''; legendBar.innerHTML = '';
-    speciesConfig.innerHTML = '';
+    processBtn.disabled = true;
+    while (mapSvg.firstChild) mapSvg.removeChild(mapSvg.firstChild);
+    while (legendBar.firstChild) legendBar.removeChild(legendBar.firstChild);
+    while (speciesConfig.firstChild) speciesConfig.removeChild(speciesConfig.firstChild);
     uploadSection.style.display = ''; previewSection.classList.remove('active');
     downloadSection.classList.remove('active'); statusText.textContent = '';
 }

@@ -1,7 +1,11 @@
 # Outputs gerados
+output/
 mapa_vegetacao.png
 mapa_vegetacao.pdf
 _tmp_bg.*
+
+# Vercel
+.vercel/
 
 # Python
 __pycache__/
@@ -12,3 +16,4 @@ __pycache__/
 
 # Claude
 .claude/
+.vercel
