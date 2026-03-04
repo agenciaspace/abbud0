@@ -9,13 +9,22 @@ import os
 from http.server import BaseHTTPRequestHandler
 import fitz  # PyMuPDF
 
-from api.extraction import (
-    SPECIES,
-    extract_positions,
-    extract_shrub_positions,
-    extract_ground_cover_areas,
-    assign_colors,
-)
+try:
+    from api.extraction import (
+        SPECIES,
+        extract_positions,
+        extract_shrub_positions,
+        extract_ground_cover_areas,
+        assign_colors,
+    )
+except ImportError:
+    from extraction import (
+        SPECIES,
+        extract_positions,
+        extract_shrub_positions,
+        extract_ground_cover_areas,
+        assign_colors,
+    )
 
 
 class handler(BaseHTTPRequestHandler):
