@@ -134,9 +134,16 @@ def match_forracao_color(fill_color):
 
 # --- Extracao de dados ---
 
+def _to_rendered(cx, cy, page):
+    """Converte coordenadas raw para coordenadas renderizadas conforme rotacao da pagina."""
+    if page.rotation == 270:
+        return cy, page.mediabox.width - cx
+    else:
+        return cx, cy
+
+
 def _extract_text_labels(page, valid_codes):
     """Extrai todos os labels de texto com coordenadas transformadas."""
-    mediabox_w = page.mediabox.width
     labels = []
     text_dict = page.get_text("dict")
 
@@ -151,8 +158,7 @@ def _extract_text_labels(page, valid_codes):
                     bbox = span["bbox"]
                     cx = (bbox[0] + bbox[2]) / 2
                     cy = (bbox[1] + bbox[3]) / 2
-                    rendered_x = cy
-                    rendered_y = mediabox_w - cx
+                    rendered_x, rendered_y = _to_rendered(cx, cy, page)
                     labels.append({
                         "code": base_code,
                         "x": round(rendered_x, 1),
@@ -196,7 +202,6 @@ def extract_shrub_positions(page):
     Cada triangulo e associado a especie do label de texto mais proximo.
     """
     import math
-    mediabox_w = page.mediabox.width
     rendered_w = page.rect.width
     rendered_h = page.rect.height
 
@@ -232,11 +237,9 @@ def extract_shrub_positions(page):
         if w > 20 or h > 20 or w < 3 or h < 3:
             continue
 
-        # Transforma coordenadas (rotacao 270)
         cx_raw = (rect.x0 + rect.x1) / 2
         cy_raw = (rect.y0 + rect.y1) / 2
-        tx = cy_raw
-        ty = mediabox_w - cx_raw
+        tx, ty = _to_rendered(cx_raw, cy_raw, page)
 
         # Filtra fora dos limites
         if tx < margin_x or tx > rendered_w - margin_x:
@@ -270,7 +273,6 @@ def extract_shrub_positions(page):
 
 def extract_ground_cover_areas(page):
     """Extrai areas de forracao do PDF baseado nas cores dos desenhos."""
-    mediabox_w = page.mediabox.width
     rendered_w = page.rect.width
     rendered_h = page.rect.height
 
@@ -326,8 +328,7 @@ def extract_ground_cover_areas(page):
         if not raw_points:
             continue
 
-        # Aplica transformacao de rotacao 270
-        path_points = [(ry, mediabox_w - rx) for rx, ry in raw_points]
+        path_points = [_to_rendered(rx, ry, page) for rx, ry in raw_points]
 
         # Filtra pontos fora dos limites do mapa
         if all(px < 0 or px > rendered_w or py < 0 or py > rendered_h
