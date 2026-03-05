@@ -48,6 +48,12 @@ FORRACOES_COLOR_MAP = {
     (0.922, 0.612, 0.259): {"label": "NERV", "codes": ["NERV"]},
     (0.871, 0.616, 0.529): {"label": "WEPA + THWI", "codes": ["WEPA", "THWI"]},
     (0.690, 0.847, 0.690): {"label": "OPJB(VD)", "codes": ["OPJB"]},
+    # Cores identificadas pela analise do PDF PINI-PSG-PE-0504-LAZ-R00
+    (0.384, 0.443, 0.294): {"label": "MOIR + CAAR", "codes": ["MOIR", "CAAR"]},
+    (1.000, 1.000, 0.000): {"label": "MOIR + CAAR", "codes": ["MOIR", "CAAR"]},
+    (1.000, 0.000, 0.000): {"label": "WEPA + CLFL", "codes": ["WEPA", "CLFL"]},
+    (0.867, 0.000, 0.000): {"label": "WEPA + CLFL", "codes": ["WEPA", "CLFL"]},
+    (0.867, 0.431, 0.000): {"label": "WEPA + PHBI", "codes": ["WEPA", "PHBI"]},
 }
 
 COLOR_PALETTE = [
@@ -208,7 +214,9 @@ def extract_ground_cover_areas(page):
         fill = d.get("fill")
         if not fill:
             continue
-        if all(c < 0.1 for c in fill) or all(c > 0.85 for c in fill):
+        if all(c < 0.1 for c in fill):
+            continue
+        if all(c > 0.95 for c in fill):
             continue
 
         match = match_forracao_color(fill)
