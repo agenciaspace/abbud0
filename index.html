@@ -55,6 +55,15 @@
         .upload-zone .filename { color: var(--accent); font-weight: 600; font-size: 14px; margin-top: 12px; }
         .upload-zone input { display: none; }
 
+        .instructions {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 24px 32px; margin-bottom: 24px;
+        }
+        .instructions h2 { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+        .instructions p { font-size: 14px; color: var(--text2); line-height: 1.7; margin-bottom: 0; }
+
+        .type-desc { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.4; }
+
         .type-selector {
             display: flex; gap: 12px; margin-top: 24px; justify-content: center;
         }
@@ -170,6 +179,10 @@
     </div>
     <div class="container">
         <div id="uploadSection">
+            <div class="instructions">
+                <h2>Como funciona</h2>
+                <p>Envie o PDF do projeto de paisagismo. O sistema identifica e posiciona automaticamente cada planta no mapa, gerando uma visualizacao interativa com legenda e contagem por especie. Ao final, voce pode baixar o resultado em PNG ou PDF para uso em apresentacoes e documentacao tecnica.</p>
+            </div>
             <div class="upload-zone" id="dropZone">
                 <div class="icon">&#128196;</div>
                 <div><strong>Arraste o PDF de paisagismo aqui</strong></div>
@@ -177,25 +190,36 @@
                 <div class="filename" id="fileName"></div>
                 <input type="file" id="fileInput" accept=".pdf">
             </div>
+            <p style="text-align:center;font-size:13px;color:var(--text2);margin-top:20px;margin-bottom:8px;">Selecione o que deseja visualizar — pode escolher um ou mais tipos:</p>
             <div class="type-selector" id="typeSelector">
                 <label class="type-option selected" data-type="arvore">
                     <input type="checkbox" name="plantType" value="arvore" checked>
                     <span class="type-icon">&#127794;</span>
-                    <span>Arvores</span>
+                    <div>
+                        <div>Arvores</div>
+                        <div class="type-desc">Especies de grande porte identificadas por codigo no plano</div>
+                    </div>
                 </label>
                 <label class="type-option" data-type="arbusto">
                     <input type="checkbox" name="plantType" value="arbusto">
                     <span class="type-icon">&#127807;</span>
-                    <span>Arbustos</span>
+                    <div>
+                        <div>Arbustos</div>
+                        <div class="type-desc">Especies de medio porte representadas por simbolos no plano</div>
+                    </div>
                 </label>
                 <label class="type-option" data-type="forracao">
                     <input type="checkbox" name="plantType" value="forracao">
                     <span class="type-icon">&#127811;</span>
-                    <span>Forracoes</span>
+                    <div>
+                        <div>Forracoes</div>
+                        <div class="type-desc">Areas de cobertura vegetal baixa, identificadas pelas cores do plano</div>
+                    </div>
                 </label>
             </div>
             <div class="species-config" id="speciesConfig"></div>
             <div class="actions"><button class="btn btn-primary" id="processBtn" disabled>Processar PDF</button></div>
+            <p style="text-align:center;font-size:12px;color:var(--text2);margin-top:12px;">Apos o processamento, o mapa sera exibido com a vegetacao marcada e opcoes de download em PNG e PDF.</p>
             <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
             <div class="status" id="statusText"></div>
         </div>
