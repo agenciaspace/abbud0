@@ -11,6 +11,10 @@ _tmp_bg.*
 __pycache__/
 *.pyc
 
+# Environment variables
+.env
+.env.local
+
 # OS
 .DS_Store
 
