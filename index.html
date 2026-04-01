@@ -190,6 +190,41 @@
         .tab-panel { display: none; }
         .tab-panel.active { display: block; }
 
+        /* Presentation slides modal */
+        .slides-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .slides-modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; width: 95vw; max-width: 1200px;
+            max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .slides-modal-header {
+            padding: 16px 24px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .slides-modal-header h2 { font-size: 14px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+        .slides-modal-body {
+            flex: 1; overflow-y: auto; padding: 24px;
+            display: flex; flex-direction: column; align-items: center; gap: 32px;
+        }
+        .slide-preview {
+            background: white; border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            width: 100%; aspect-ratio: 16/9; position: relative; overflow: hidden;
+        }
+        .slide-preview canvas { width: 100%; height: 100%; display: block; }
+        .slide-number {
+            position: absolute; top: 8px; right: 12px;
+            background: rgba(0,0,0,0.5); color: white;
+            font-size: 11px; padding: 3px 10px; border-radius: 10px;
+        }
+        .slides-modal-footer {
+            padding: 16px 24px; border-top: 1px solid var(--border);
+            display: flex; justify-content: flex-end; gap: 12px;
+        }
+
         @media (max-width: 768px) {
             .container { padding: 16px; }
             .upload-zone { padding: 40px 20px; }
@@ -633,6 +668,19 @@ function renderTabs(types) {
         pdfCard.appendChild(pdfDesc);
         dlGrid.appendChild(pdfCard);
 
+        var slidesCard = document.createElement('div');
+        slidesCard.className = 'download-card';
+        slidesCard.setAttribute('onclick', 'generateSpeciesSlides("' + type + '")');
+        var slidesFormat = document.createElement('div');
+        slidesFormat.className = 'format';
+        slidesFormat.textContent = 'SLIDES';
+        var slidesDesc = document.createElement('div');
+        slidesDesc.className = 'desc';
+        slidesDesc.textContent = 'Apresentacao por especie (max 5/slide)';
+        slidesCard.appendChild(slidesFormat);
+        slidesCard.appendChild(slidesDesc);
+        dlGrid.appendChild(slidesCard);
+
         panel.appendChild(dlGrid);
         tabPanels.appendChild(panel);
 
@@ -946,6 +994,218 @@ function exportAllPDF() {
     }
 
     if (doc) doc.save('mapa_vegetacao_completo.pdf');
+}
+
+// --- Species Slides Presentation ---
+
+function renderSlideComposite(type, highlightCodes, scale) {
+    // Renders the implantation image highlighting only the specified species codes
+    // All other species are invisible
+    var result = results[type];
+    var data = result.data;
+    var bgCanvas = result.bgCanvas;
+    var config = TYPE_CONFIG[type];
+
+    var w = pageW * scale, h = pageH * scale;
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(bgCanvas, 0, 0, w, h);
+
+    if (type === 'forracao') {
+        for (var label of Object.keys(data.areas)) {
+            var info = data.areas[label];
+            var isHighlighted = highlightCodes.indexOf(label) >= 0;
+            if (!isHighlighted) continue; // skip non-highlighted species
+            var rgb = hexToRgb(info.color);
+            ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.6)';
+            for (var path of info.paths) {
+                if (path.length < 3) continue;
+                ctx.beginPath();
+                ctx.moveTo(path[0][0] * scale, path[0][1] * scale);
+                for (var i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i][0] * scale, path[i][1] * scale);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+    } else {
+        var r = pageW * config.radiusRatio * scale;
+        for (var code of Object.keys(data.species)) {
+            var info = data.species[code];
+            var isHighlighted = highlightCodes.indexOf(code) >= 0;
+            if (!isHighlighted) continue; // skip non-highlighted species
+            var rgb = hexToRgb(info.color);
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5 * scale;
+            for (var p of info.positions) {
+                ctx.beginPath(); ctx.arc(p.x * scale, p.y * scale, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + CIRCLE_OPACITY + ')';
+                ctx.fill(); ctx.stroke();
+            }
+        }
+    }
+    return c;
+}
+
+function generateSpeciesSlides(type) {
+    var result = results[type];
+    var data = result.data;
+    var config = TYPE_CONFIG[type];
+    var jsPDFLib = window.jspdf;
+
+    // Collect all species entries
+    var allEntries = [];
+    if (type === 'forracao') {
+        for (var label of Object.keys(data.areas)) {
+            var info = data.areas[label];
+            allEntries.push({ code: label, color: info.color, name: '', count: info.paths.length, unit: 'areas' });
+        }
+    } else {
+        for (var code of Object.keys(data.species)) {
+            var info = data.species[code];
+            allEntries.push({ code: code, color: info.color, name: info.name || '', count: info.positions.length, unit: 'un.' });
+        }
+    }
+
+    if (allEntries.length === 0) return;
+
+    // Group into chunks of 5
+    var SPECIES_PER_SLIDE = 5;
+    var slides = [];
+    for (var i = 0; i < allEntries.length; i += SPECIES_PER_SLIDE) {
+        slides.push(allEntries.slice(i, i + SPECIES_PER_SLIDE));
+    }
+
+    // PDF dimensions (landscape 16:9, A4-ish)
+    var slideW = 1120, slideH = 630;
+    var doc = new jsPDFLib.jsPDF({ orientation: 'landscape', unit: 'pt', format: [slideW, slideH] });
+
+    var mapScale = 1.0;
+    var totalSlides = slides.length;
+
+    for (var s = 0; s < slides.length; s++) {
+        var slideEntries = slides[s];
+        var slideCodes = slideEntries.map(function(e) { return e.code; });
+
+        if (s > 0) doc.addPage([slideW, slideH], 'landscape');
+
+        // --- White background ---
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, slideW, slideH, 'F');
+
+        // --- Header bar ---
+        doc.setFillColor(245, 245, 245);
+        doc.rect(0, 0, slideW, 48, 'F');
+        doc.setDrawColor(220, 220, 220);
+        doc.line(0, 48, slideW, 48);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(34, 34, 34);
+        doc.text('IMPLANTACAO DE VEGETACAO', 24, 30);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(130, 130, 130);
+        doc.text(config.labelFull + '  |  Especies ' + (s * SPECIES_PER_SLIDE + 1) + '-' + (s * SPECIES_PER_SLIDE + slideEntries.length) + ' de ' + allEntries.length, 24, 42);
+
+        // Slide counter
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(160, 160, 160);
+        doc.text('Slide ' + (s + 1) + '/' + totalSlides, slideW - 24, 30, { align: 'right' });
+
+        // --- Layout: left = implantation map, right = species list ---
+        var contentTop = 60;
+        var contentH = slideH - contentTop - 30; // leave footer space
+        var mapAreaW = slideW * 0.55;
+        var listAreaX = mapAreaW + 20;
+        var listAreaW = slideW - listAreaX - 24;
+
+        // --- Render implantation with only this slide's species ---
+        var mapCanvas = renderSlideComposite(type, slideCodes, mapScale);
+        var mapImg = mapCanvas.toDataURL('image/jpeg', 0.90);
+
+        // Scale map to fit within mapAreaW x contentH
+        var mapDispW = mapAreaW - 40;
+        var mapDispH = mapDispW * (mapCanvas.height / mapCanvas.width);
+        if (mapDispH > contentH) {
+            mapDispH = contentH;
+            mapDispW = mapDispH * (mapCanvas.width / mapCanvas.height);
+        }
+        var mapX = 20 + (mapAreaW - 40 - mapDispW) / 2;
+        var mapY = contentTop + (contentH - mapDispH) / 2;
+
+        // Border around map
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.5);
+        doc.rect(mapX - 2, mapY - 2, mapDispW + 4, mapDispH + 4);
+        doc.addImage(mapImg, 'JPEG', mapX, mapY, mapDispW, mapDispH);
+
+        // --- Species list on the right ---
+        var listY = contentTop + 10;
+        var entryHeight = Math.min(100, (contentH - 20) / Math.max(slideEntries.length, 1));
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(11);
+        doc.setTextColor(60, 60, 60);
+        doc.text('ESPECIES NESTE SLIDE', listAreaX, listY);
+        listY += 20;
+
+        for (var e = 0; e < slideEntries.length; e++) {
+            var entry = slideEntries[e];
+            var ey = listY + e * entryHeight;
+            var rgb = hexToRgb(entry.color);
+
+            // Color marker (circle or square)
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            if (type === 'forracao') {
+                doc.roundedRect(listAreaX, ey - 3, 16, 16, 2, 2, 'F');
+            } else {
+                doc.circle(listAreaX + 8, ey + 5, 8, 'F');
+            }
+
+            // Species code
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(12);
+            doc.setTextColor(34, 34, 34);
+            doc.text(entry.code, listAreaX + 24, ey + 9);
+
+            // Scientific name
+            if (entry.name) {
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(10);
+                doc.setTextColor(100, 100, 100);
+                doc.text(entry.name, listAreaX + 24, ey + 22);
+            }
+
+            // Count
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(9);
+            doc.setTextColor(150, 150, 150);
+            var countText = entry.count + ' ' + entry.unit;
+            doc.text(countText, listAreaX + 24, ey + (entry.name ? 34 : 22));
+
+            // Separator line between entries
+            if (e < slideEntries.length - 1) {
+                var sepY = ey + entryHeight - 6;
+                doc.setDrawColor(230, 230, 230);
+                doc.setLineWidth(0.3);
+                doc.line(listAreaX, sepY, listAreaX + listAreaW, sepY);
+            }
+        }
+
+        // --- Footer ---
+        doc.setDrawColor(220, 220, 220);
+        doc.line(24, slideH - 20, slideW - 24, slideH - 20);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(180, 180, 180);
+        doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', slideW / 2, slideH - 10, { align: 'center' });
+    }
+
+    var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
+    doc.save('apresentacao_especies_' + suffix + '.pdf');
 }
 
 function resetApp() {
