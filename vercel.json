@@ -5,6 +5,9 @@
     },
     "api/parse.py": {
       "maxDuration": 60
+    },
+    "api/species.py": {
+      "maxDuration": 60
     }
   }
 }
