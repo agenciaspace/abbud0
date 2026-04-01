@@ -11,8 +11,8 @@ from http.server import BaseHTTPRequestHandler
 
 import fitz  # PyMuPDF
 
-# Path to the BABBUD species PDF (relative to project root)
-BABBUD_PDF = os.path.join(os.path.dirname(os.path.dirname(__file__)), "arquivos", "BABBUD LEG ESPECIES 03.2026-R00.pdf")
+# Base directory (project root)
+_BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 # Normalized type mapping from PDF categories to internal types
 TYPE_MAP = {
@@ -224,39 +224,131 @@ def parse_txt_ar_pa_ar(filepath):
 
 
 def parse_txt_forracao(filepath):
-    """Parse FORRACAO.TXT structured list. (Extension point)"""
+    """Parse FORRACAO.TXT structured list.
+    Format: ("CODE" "TYPE" "Scientific name" "Common name" "H" "D" "Obs" (colors) "price" "STATUS")
+    """
     if not os.path.exists(filepath):
         return []
     species = []
     with open(filepath, "r", encoding="utf-8", errors="replace") as f:
         content = f.read()
     for line in content.strip().split("\n"):
-        parts = re.split(r'\t+|\|', line.strip())
-        if len(parts) < 4:
+        line = line.strip()
+        if not line.startswith("("):
             continue
-        code = parts[0].strip()
-        if not re.match(r'^[A-Z][A-Z0-9]{1,5}$', code):
+        # Extract quoted fields
+        fields = re.findall(r'"([^"]*)"', line)
+        if len(fields) < 4:
             continue
+        code = fields[0].strip()
+        if not code or not re.match(r'^[A-Z][A-Z0-9]{1,5}$', code):
+            continue
+        cat = fields[1].strip()  # FO, AR, PA, etc.
+        scientific = fields[2].strip()
+        common = fields[3].strip()
+        # Height and diameter if present
+        height = fields[4].strip() if len(fields) > 4 else ""
+        diameter = fields[5].strip() if len(fields) > 5 else ""
+        obs = fields[6].strip() if len(fields) > 6 else ""
+
+        # Skip non-plant materials
+        if common.lower() in ("areia", "casca de árvore", "casca de arvore",
+                               "casca de árvore mini", "casca de arvore mini",
+                               "pedra", "seixo"):
+            continue
+
         species.append({
             "code": code,
             "type": "forracao",
             "broad_type": "forracao",
             "type_label": "6. FORRAÇÃO",
-            "scientific_name": parts[2].strip() if len(parts) > 2 else "",
-            "common_name": parts[3].strip() if len(parts) > 3 else "",
+            "scientific_name": scientific,
+            "common_name": common,
             "origin": "",
             "sun_exposure": "",
             "old_code": "",
             "image_url": "",
+            "height": height,
+            "diameter": diameter,
+            "planting_notes": obs,
             "source": "txt_forracao",
         })
     return species
 
 
-def consolidate_species(pdf_species, txt_ar=None, txt_forr=None, xlsx_images=None):
+def load_xlsx_images(base_dir):
+    """Load species -> image mapping from extracted XLSX images.
+    Reads the mapping.json created during image extraction."""
+    mapping_path = os.path.join(base_dir, "especies_img", "mapping.json")
+    if not os.path.exists(mapping_path):
+        return {}
+    import json
+    with open(mapping_path, "r") as f:
+        return json.load(f)
+
+
+def load_xlsx_species(xlsx_path):
+    """Parse 'uso interno PLANILHA' sheet from XLSX for additional species data."""
+    if not os.path.exists(xlsx_path):
+        return []
+    try:
+        import openpyxl
+    except ImportError:
+        return []
+
+    species = []
+    wb = openpyxl.load_workbook(xlsx_path, data_only=True, read_only=True)
+    if 'uso interno PLANILHA' not in wb.sheetnames:
+        wb.close()
+        return []
+
+    ws = wb['uso interno PLANILHA']
+    for row in ws.iter_rows(min_row=4, values_only=True):
+        if not row or not row[0]:
+            continue
+        code = str(row[0]).strip()
+        if not re.match(r'^[A-Z][A-Z0-9]{1,5}(\s[A-Z]{1,3})?$', code):
+            continue
+        tipo = str(row[1]).strip() if row[1] else ""
+        scientific = str(row[2]).strip() if row[2] else ""
+        common = str(row[3]).strip() if row[3] else ""
+        origin = str(row[6]).strip() if len(row) > 6 and row[6] else ""
+        sun = str(row[7]).strip() if len(row) > 7 and row[7] else ""
+
+        if not scientific:
+            continue
+
+        # Determine normalized type
+        normalized_type = "desconhecido"
+        broad_type = "desconhecido"
+        for pdf_type, norm in TYPE_MAP.items():
+            if tipo.startswith(pdf_type.split(".")[0] + ".") or tipo == pdf_type:
+                normalized_type = norm
+                broad_type = BROAD_TYPE_MAP.get(norm, norm)
+                break
+
+        species.append({
+            "code": code,
+            "type": normalized_type,
+            "broad_type": broad_type,
+            "type_label": tipo,
+            "scientific_name": scientific,
+            "common_name": common,
+            "origin": origin,
+            "sun_exposure": sun,
+            "old_code": "",
+            "image_url": "",
+            "source": "xlsx",
+        })
+
+    wb.close()
+    return species
+
+
+def consolidate_species(pdf_species, txt_ar=None, txt_forr=None, xlsx_species=None, xlsx_images=None):
     """
     Consolidate species from all sources into a unified dictionary.
-    Priority: PDF > TXT > XLSX (for enrichment only).
+    Priority: PDF > XLSX > TXT (for enrichment).
     """
     unified = {}
 
@@ -266,30 +358,55 @@ def consolidate_species(pdf_species, txt_ar=None, txt_forr=None, xlsx_images=Non
         entry = {k: v for k, v in sp.items() if not k.startswith("_")}
         unified[code] = entry
 
-    # 2. TXT enrichment
+    # 2. XLSX species enrichment (second priority)
+    for sp in (xlsx_species or []):
+        code = sp["code"]
+        if code in unified:
+            for field in ("common_name", "sun_exposure", "origin"):
+                if not unified[code].get(field) and sp.get(field):
+                    unified[code][field] = sp[field]
+            if "xlsx" not in unified[code].get("source", ""):
+                unified[code]["source"] += "+xlsx"
+        else:
+            entry = {k: v for k, v in sp.items() if not k.startswith("_")}
+            unified[code] = entry
+
+    # 3. TXT enrichment (planting notes, dimensions)
     for txt_list in (txt_ar or [], txt_forr or []):
         for sp in txt_list:
             code = sp["code"]
             if code in unified:
-                # Enrich missing fields only
-                for field in ("common_name", "sun_exposure", "origin"):
+                for field in ("common_name", "sun_exposure", "origin",
+                              "height", "diameter", "planting_notes"):
                     if not unified[code].get(field) and sp.get(field):
                         unified[code][field] = sp[field]
-                # Mark as enriched
                 if "txt" not in unified[code].get("source", ""):
                     unified[code]["source"] += "+txt"
             else:
-                # New species from TXT
                 entry = {k: v for k, v in sp.items() if not k.startswith("_")}
                 unified[code] = entry
 
-    # 3. XLSX image association
+    # 4. XLSX image association
     if xlsx_images:
-        for code, img_url in xlsx_images.items():
-            if code in unified:
-                unified[code]["image_url"] = img_url
-                if "xlsx" not in unified[code].get("source", ""):
-                    unified[code]["source"] += "+xlsx"
+        for code, img_file in xlsx_images.items():
+            upper_code = code.upper()
+            if upper_code in unified:
+                unified[upper_code]["image_url"] = "/especies_img/" + img_file
+                if "img" not in unified[upper_code].get("source", ""):
+                    unified[upper_code]["source"] += "+img"
+
+    # 5. Filter out non-plant materials
+    non_plant_codes = set()
+    for code, sp in unified.items():
+        if sp.get("broad_type") == "material" or sp.get("type") == "material":
+            non_plant_codes.add(code)
+        name = (sp.get("scientific_name", "") + sp.get("common_name", "")).lower()
+        if any(m in name for m in ("areia", "casca de árvore", "casca de arvore",
+                                    "pedra", "seixo", "brita", "cascalho")):
+            non_plant_codes.add(code)
+
+    for code in non_plant_codes:
+        unified.pop(code, None)
 
     return unified
 
@@ -300,16 +417,42 @@ def get_species_database():
     if _species_cache is not None:
         return _species_cache
 
+    base_dir = os.path.dirname(os.path.dirname(__file__))
+
+    # 1. PDF primary source
     pdf_species = []
-    if os.path.exists(BABBUD_PDF):
-        pdf_species = parse_babbud_pdf(BABBUD_PDF)
+    pdf_path = os.path.join(base_dir, "arquivos", "BABBUD LEG ESPECIES 03.2026-R00.pdf")
+    if not os.path.exists(pdf_path):
+        # Also check root
+        pdf_path = os.path.join(base_dir, "BABBUD LEG ESPECIES 03.2026-R00.pdf")
+    if os.path.exists(pdf_path):
+        pdf_species = parse_babbud_pdf(pdf_path)
 
-    # Extension: check for TXT files
-    base_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), "arquivos")
+    # 2. TXT sources
     txt_ar = parse_txt_ar_pa_ar(os.path.join(base_dir, "Ar_pa_ar.txt"))
+    if not txt_ar:
+        txt_ar = parse_txt_ar_pa_ar(os.path.join(base_dir, "arquivos", "Ar_pa_ar.txt"))
     txt_forr = parse_txt_forracao(os.path.join(base_dir, "FORRACAO.TXT"))
+    if not txt_forr:
+        txt_forr = parse_txt_forracao(os.path.join(base_dir, "arquivos", "FORRACAO.TXT"))
 
-    _species_cache = consolidate_species(pdf_species, txt_ar, txt_forr)
+    # 3. XLSX species data
+    xlsx_path = None
+    for candidate in [
+        os.path.join(base_dir, "XXXX-XXX-PA-AP-500-R00_2026 R0A LEG PLANTIO.xlsx"),
+        os.path.join(base_dir, "arquivos", "XXXX-XXX-PA-AP-500-R00_2026 R0A LEG PLANTIO.xlsx"),
+    ]:
+        if os.path.exists(candidate):
+            xlsx_path = candidate
+            break
+    xlsx_species = load_xlsx_species(xlsx_path) if xlsx_path else []
+
+    # 4. XLSX images
+    xlsx_images = load_xlsx_images(base_dir)
+
+    _species_cache = consolidate_species(
+        pdf_species, txt_ar, txt_forr, xlsx_species, xlsx_images
+    )
     return _species_cache
 
 
