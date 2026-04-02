@@ -150,31 +150,6 @@
 
         .new-upload { text-align: center; margin-top: 20px; }
 
-        .parse-panel {
-            display: none; margin-top: 32px;
-        }
-        .parse-panel.active { display: block; }
-        .parse-card {
-            background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden;
-        }
-        .parse-header {
-            padding: 16px 24px; border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
-        }
-        .parse-header h2 { font-size: 14px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
-        .parse-content {
-            padding: 24px; font-size: 14px; line-height: 1.8; color: var(--text);
-            max-height: 600px; overflow-y: auto; white-space: pre-wrap; font-family: 'SF Mono', 'Fira Code', monospace;
-        }
-        .parse-content table { border-collapse: collapse; width: 100%; margin: 12px 0; }
-        .parse-content th, .parse-content td { border: 1px solid var(--border); padding: 8px 12px; text-align: left; font-size: 13px; }
-        .parse-content th { background: var(--surface2); font-weight: 600; }
-        .parse-content h1, .parse-content h2, .parse-content h3 { margin: 16px 0 8px; color: var(--accent); }
-        .parse-status { text-align: center; padding: 40px; color: var(--text2); font-size: 14px; }
-        .btn-parse { background: #2196F3; color: white; }
-        .btn-parse:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-parse:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
-
         .tabs-bar {
             display: flex; border-bottom: 1px solid var(--border);
             background: var(--surface2);
@@ -280,23 +255,10 @@
             <div class="species-config" id="speciesConfig"></div>
             <div class="actions">
                 <button class="btn btn-primary" id="processBtn" disabled>Processar PDF</button>
-                <button class="btn btn-parse" id="parseBtn" disabled>Ler Documento (LlamaParse)</button>
             </div>
             <p style="text-align:center;font-size:12px;color:var(--text2);margin-top:12px;">Apos o processamento, o mapa sera exibido com a vegetacao marcada e opcoes de download em PNG e PDF.</p>
             <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
             <div class="status" id="statusText"></div>
-        </div>
-
-        <div class="parse-panel" id="parsePanel">
-            <div class="parse-card">
-                <div class="parse-header">
-                    <h2>Leitura do Documento</h2>
-                    <button class="btn btn-outline" id="closeParse" style="padding:6px 16px;font-size:12px;">Fechar</button>
-                </div>
-                <div class="parse-content" id="parseContent">
-                    <div class="parse-status" id="parseStatus">Processando documento com LlamaParse...</div>
-                </div>
-            </div>
         </div>
 
         <div class="preview-section" id="previewSection">
@@ -347,95 +309,6 @@ const processBtn = $('processBtn'), progressBar = $('progressBar'), progressFill
 const statusText = $('statusText'), uploadSection = $('uploadSection');
 const previewSection = $('previewSection');
 const speciesConfig = $('speciesConfig');
-const parseBtn = $('parseBtn');
-const parsePanel = $('parsePanel');
-const parseContent = $('parseContent');
-const parseStatus = $('parseStatus');
-
-parseBtn.addEventListener('click', parsePDF);
-$('closeParse').addEventListener('click', () => { parsePanel.classList.remove('active'); });
-
-async function parsePDF() {
-    if (!pdfFile) { statusText.textContent = 'Selecione um arquivo PDF primeiro.'; return; }
-    parseBtn.disabled = true;
-    parsePanel.classList.add('active');
-    parseContent.innerHTML = '<div class="parse-status">Enviando documento para LlamaParse...</div>';
-
-    try {
-        const formData = new FormData();
-        formData.append('file', pdfFile);
-
-        const resp = await fetch('/api/parse', { method: 'POST', body: formData });
-        const data = await resp.json();
-
-        if (!resp.ok) throw new Error(data.error || 'Erro ao processar documento');
-
-        if (data.status === 'PENDING') {
-            parseContent.innerHTML = '<div class="parse-status">Documento sendo processado... Aguarde.</div>';
-            await pollParseJob(data.job_id);
-        } else if (data.status === 'SUCCESS') {
-            renderParsedContent(data.markdown);
-        } else {
-            throw new Error('Status inesperado: ' + data.status);
-        }
-    } catch (err) {
-        console.error(err);
-        parseContent.innerHTML = '<div class="parse-status" style="color:#F44336;">Erro: ' + err.message + '</div>';
-    } finally {
-        parseBtn.disabled = false;
-    }
-}
-
-async function pollParseJob(jobId) {
-    for (let i = 0; i < 30; i++) {
-        await new Promise(r => setTimeout(r, 3000));
-        try {
-            const resp = await fetch('/api/parse?job_id=' + encodeURIComponent(jobId));
-            const data = await resp.json();
-            if (data.status === 'SUCCESS') {
-                renderParsedContent(data.markdown);
-                return;
-            } else if (data.status === 'ERROR') {
-                throw new Error('Erro no processamento do documento');
-            }
-            parseContent.innerHTML = '<div class="parse-status">Processando documento... (' + (i + 1) + ')</div>';
-        } catch (err) {
-            parseContent.innerHTML = '<div class="parse-status" style="color:#F44336;">Erro: ' + err.message + '</div>';
-            return;
-        }
-    }
-    parseContent.innerHTML = '<div class="parse-status" style="color:#FF9800;">Timeout: o documento ainda esta sendo processado. Tente novamente em alguns minutos.</div>';
-}
-
-function renderParsedContent(markdown) {
-    // Simple markdown to HTML conversion
-    let html = markdown
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/^### (.+)$/gm, '<h3>$1</h3>')
-        .replace(/^## (.+)$/gm, '<h2>$1</h2>')
-        .replace(/^# (.+)$/gm, '<h1>$1</h1>')
-        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
-        .replace(/\*(.+?)\*/g, '<em>$1</em>')
-        .replace(/^---$/gm, '<hr>')
-        .replace(/\n/g, '<br>');
-
-    // Convert markdown tables
-    html = html.replace(/(\|.+\|<br>)+/g, function(tableBlock) {
-        const rows = tableBlock.split('<br>').filter(r => r.trim());
-        let table = '<table>';
-        rows.forEach((row, i) => {
-            if (row.replace(/[|\-\s]/g, '') === '') return; // skip separator row
-            const cells = row.split('|').filter(c => c !== '');
-            const tag = i === 0 ? 'th' : 'td';
-            table += '<tr>' + cells.map(c => '<' + tag + '>' + c.trim() + '</' + tag + '>').join('') + '</tr>';
-        });
-        table += '</table>';
-        return table;
-    });
-
-    parseContent.innerHTML = html;
-}
-
 // Type selector — toggle visual .selected class based on checkbox state
 document.querySelectorAll('.type-option').forEach(opt => {
     opt.addEventListener('click', () => {
@@ -458,7 +331,7 @@ processBtn.addEventListener('click', processPDF);
 
 function handleFile(f) {
     if (f.type !== 'application/pdf') { statusText.textContent = 'Selecione um arquivo PDF.'; return; }
-    pdfFile = f; fileNameEl.textContent = f.name; processBtn.disabled = false; parseBtn.disabled = false; statusText.textContent = '';
+    pdfFile = f; fileNameEl.textContent = f.name; processBtn.disabled = false; statusText.textContent = '';
 }
 
 function setProgress(p) { progressBar.classList.add('active'); progressFill.style.width = p + '%'; }
@@ -1393,8 +1266,7 @@ async function generateSpeciesSlides(type) {
 function resetApp() {
     pdfFile = null; results = {}; activeTab = null;
     fileInput.value = ''; fileNameEl.textContent = '';
-    processBtn.disabled = true; parseBtn.disabled = true;
-    parsePanel.classList.remove('active');
+    processBtn.disabled = true;
     const tabsBar = $('tabsBar');
     const tabPanels = $('tabPanels');
     if (tabsBar) while (tabsBar.firstChild) tabsBar.removeChild(tabsBar.firstChild);

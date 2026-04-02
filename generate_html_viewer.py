@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 """
-Generates an interactive HTML species viewer with:
-- Map per vegetation type with colored markers
-- Photo tooltips on hover over species in the legend
-- Standalone file (images embedded as base64)
+Generates an interactive HTML species viewer with SVG overlay markers
+and photo tooltips. Standalone file with embedded base64 images.
 """
 
 import os
@@ -41,8 +39,7 @@ def find_image(code):
     return None
 
 
-def img_to_base64(path, max_dim=300):
-    """Load image, resize, and return base64 data URL."""
+def img_to_base64(path, max_dim=250):
     if not path or not os.path.exists(path):
         return ""
     try:
@@ -54,7 +51,6 @@ def img_to_base64(path, max_dim=300):
             p.insert_image(p.rect, pixmap=pix)
             pix = p.get_pixmap(matrix=fitz.Matrix(scale, scale))
             tmp.close()
-        # Convert to PNG bytes
         img_bytes = pix.tobytes("jpeg")
         b64 = base64.b64encode(img_bytes).decode("ascii")
         return f"data:image/jpeg;base64,{b64}"
@@ -63,7 +59,6 @@ def img_to_base64(path, max_dim=300):
 
 
 def render_map_base64(pdf_path, dpi=48):
-    """Render PDF page to base64 PNG for use as background."""
     doc = fitz.open(pdf_path)
     page = doc[0]
     pw, ph = page.rect.width, page.rect.height
@@ -71,7 +66,7 @@ def render_map_base64(pdf_path, dpi=48):
     img_bytes = pix.tobytes("jpeg")
     b64 = base64.b64encode(img_bytes).decode("ascii")
     doc.close()
-    return f"data:image/jpeg;base64,{b64}", pw, ph, pix.width, pix.height
+    return f"data:image/jpeg;base64,{b64}", pw, ph
 
 
 def extract_all(species_db):
@@ -92,13 +87,17 @@ def extract_all(species_db):
                 codes = label.replace("(", "").replace(")", "").split("+")
                 first_code = codes[0].strip().split()[0]
                 db = species_db.get(first_code, {})
-                # Centroid of all paths for marker position
+                # Collect all points for SVG paths
                 all_pts = [p for path in info["paths"] for p in path]
-                if all_pts:
-                    cx = sum(p[0] for p in all_pts) / len(all_pts)
-                    cy = sum(p[1] for p in all_pts) / len(all_pts)
-                else:
-                    cx, cy = pw / 2, ph / 2
+                # Use centroid for legend marker
+                cx = sum(p[0] for p in all_pts) / len(all_pts) if all_pts else pw / 2
+                cy = sum(p[1] for p in all_pts) / len(all_pts) if all_pts else ph / 2
+                # Build SVG path data for all polygons
+                svg_paths = []
+                for path_pts in info["paths"]:
+                    if len(path_pts) >= 3:
+                        d = "M " + " L ".join(f"{p[0]:.1f},{p[1]:.1f}" for p in path_pts) + " Z"
+                        svg_paths.append(d)
                 entries.append({
                     "code": label, "color": color_map[label],
                     "count": len(info["paths"]),
@@ -106,39 +105,22 @@ def extract_all(species_db):
                     "common": db.get("common_name", ""),
                     "origin": db.get("origin", ""),
                     "sun": db.get("sun_exposure", ""),
-                    "x": cx / pw * 100, "y": cy / ph * 100,
+                    "cx": cx, "cy": cy,
+                    "svg_paths": svg_paths,
+                    "positions": [],
                     "image_path": find_image(first_code),
                 })
             all_data[ptype] = {"entries": entries, "pw": pw, "ph": ph, "pdf": pdf_path}
-        elif ptype == "arbusto":
-            raw = extract_shrub_positions(page)
-            color_map = assign_colors(raw, "arbusto")
-            entries = []
-            for code in sorted(raw.keys()):
-                db = species_db.get(code, {})
-                positions = raw[code]
-                cx = sum(p["x"] for p in positions) / len(positions) if positions else pw / 2
-                cy = sum(p["y"] for p in positions) / len(positions) if positions else ph / 2
-                entries.append({
-                    "code": code, "color": color_map[code],
-                    "count": len(positions),
-                    "scientific": db.get("scientific_name", ""),
-                    "common": db.get("common_name", ""),
-                    "origin": db.get("origin", ""),
-                    "sun": db.get("sun_exposure", ""),
-                    "x": cx / pw * 100, "y": cy / ph * 100,
-                    "image_path": find_image(code),
-                })
-            all_data[ptype] = {"entries": entries, "pw": pw, "ph": ph, "pdf": pdf_path}
         else:
-            raw = extract_positions(page, "arvore")
-            color_map = assign_colors(raw, "arvore")
+            if ptype == "arbusto":
+                raw = extract_shrub_positions(page)
+            else:
+                raw = extract_positions(page, "arvore")
+            color_map = assign_colors(raw, ptype if ptype != "arvore" else "arvore")
             entries = []
             for code in sorted(raw.keys()):
                 db = species_db.get(code, {})
                 positions = raw[code]
-                cx = sum(p["x"] for p in positions) / len(positions) if positions else pw / 2
-                cy = sum(p["y"] for p in positions) / len(positions) if positions else ph / 2
                 entries.append({
                     "code": code, "color": color_map[code],
                     "count": len(positions),
@@ -146,7 +128,9 @@ def extract_all(species_db):
                     "common": db.get("common_name", ""),
                     "origin": db.get("origin", ""),
                     "sun": db.get("sun_exposure", ""),
-                    "x": cx / pw * 100, "y": cy / ph * 100,
+                    "cx": 0, "cy": 0,  # not used for circle types
+                    "svg_paths": [],
+                    "positions": [{"x": p["x"], "y": p["y"]} for p in positions],
                     "image_path": find_image(code),
                 })
             all_data[ptype] = {"entries": entries, "pw": pw, "ph": ph, "pdf": pdf_path}
@@ -155,41 +139,31 @@ def extract_all(species_db):
 
 
 def build_html(all_data):
-    # Pre-encode all images
     print("   Encoding images...")
     for ptype, tdata in all_data.items():
         for entry in tdata["entries"]:
             entry["img_b64"] = img_to_base64(entry.get("image_path"), max_dim=250)
 
-    # Pre-encode maps
     print("   Encoding maps...")
     maps_b64 = {}
     for ptype, tdata in all_data.items():
-        maps_b64[ptype], _, _, img_w, img_h = render_map_base64(tdata["pdf"], dpi=48)
-        tdata["img_w"] = img_w
-        tdata["img_h"] = img_h
+        maps_b64[ptype], _, _ = render_map_base64(tdata["pdf"], dpi=48)
 
-    # Build species data as JSON
     species_json = {}
     for ptype, tdata in all_data.items():
         species_json[ptype] = {
             "label": TYPE_LABELS.get(ptype, ptype),
             "map": maps_b64[ptype],
-            "img_w": tdata["img_w"],
-            "img_h": tdata["img_h"],
             "pw": tdata["pw"],
             "ph": tdata["ph"],
+            "type": ptype,
             "entries": [{
-                "code": e["code"],
-                "color": e["color"],
-                "count": e["count"],
-                "scientific": e["scientific"],
-                "common": e["common"],
-                "origin": e["origin"],
-                "sun": e["sun"],
-                "x": round(e["x"], 2),
-                "y": round(e["y"], 2),
+                "code": e["code"], "color": e["color"], "count": e["count"],
+                "scientific": e["scientific"], "common": e["common"],
+                "origin": e["origin"], "sun": e["sun"],
                 "img": e["img_b64"],
+                "positions": e["positions"],
+                "svg_paths": e["svg_paths"],
             } for e in tdata["entries"]],
         }
 
@@ -204,208 +178,210 @@ def build_html(all_data):
 <title>Legenda de Especies - Interativo</title>
 <style>
 *{{margin:0;padding:0;box-sizing:border-box}}
-body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f5f5;color:#222}}
-.header{{background:#1a1d21;color:#fff;padding:24px 32px;display:flex;justify-content:space-between;align-items:center}}
-.header h1{{font-size:18px;font-weight:600;letter-spacing:1px}}
-.header .stats{{display:flex;gap:24px}}
-.header .stat{{text-align:center}}
-.header .stat .num{{font-size:24px;font-weight:700;color:#4CAF50}}
-.header .stat .lbl{{font-size:10px;color:#888;text-transform:uppercase;letter-spacing:1px}}
-.tabs{{display:flex;background:#242830;border-bottom:2px solid #4CAF50}}
-.tab{{padding:12px 28px;cursor:pointer;color:#888;font-size:13px;font-weight:600;letter-spacing:0.5px;
+body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f5f5;color:#222;overflow:hidden;height:100vh}}
+.header{{background:#1a1d21;color:#fff;padding:16px 24px;display:flex;justify-content:space-between;align-items:center}}
+.header h1{{font-size:16px;font-weight:600;letter-spacing:1px}}
+.header .stats{{display:flex;gap:20px}}
+.header .stat .num{{font-size:20px;font-weight:700;color:#4CAF50}}
+.header .stat .lbl{{font-size:9px;color:#888;text-transform:uppercase;letter-spacing:1px}}
+.tabs{{display:flex;background:#242830}}
+.tab{{padding:10px 24px;cursor:pointer;color:#888;font-size:12px;font-weight:600;letter-spacing:.5px;
       border-bottom:3px solid transparent;transition:all .15s}}
 .tab:hover{{color:#ccc}}
 .tab.active{{color:#4CAF50;border-bottom-color:#4CAF50;background:#1a1d21}}
-.content{{display:flex;height:calc(100vh - 130px)}}
-.map-panel{{flex:1;position:relative;overflow:hidden;background:#fff}}
-.map-panel img{{width:100%;height:100%;object-fit:contain}}
-.map-marker{{position:absolute;width:12px;height:12px;border-radius:50%;border:2px solid #fff;
-             cursor:pointer;transform:translate(-50%,-50%);transition:all .15s;z-index:2;
-             box-shadow:0 1px 4px rgba(0,0,0,.3)}}
-.map-marker:hover{{transform:translate(-50%,-50%) scale(1.8);z-index:10}}
-.map-marker.highlight{{transform:translate(-50%,-50%) scale(2);z-index:10;
-                       box-shadow:0 0 0 4px rgba(76,175,80,.4)}}
-.legend-panel{{width:360px;overflow-y:auto;background:#fff;border-left:1px solid #e0e0e0;padding:0}}
-.legend-title{{padding:16px 20px 8px;font-size:11px;font-weight:700;color:#888;
-               letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee}}
-.species-row{{display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
-              border-bottom:1px solid #f5f5f5;transition:background .1s;position:relative}}
-.species-row:hover{{background:#f0faf0}}
-.species-row.active{{background:#e8f5e9}}
-.sp-dot{{width:14px;height:14px;border-radius:50%;flex-shrink:0}}
+.main{{display:flex;height:calc(100vh - 98px)}}
+.map-wrap{{flex:1;position:relative;background:#fff;overflow:hidden}}
+.map-wrap img{{display:block;width:100%;height:100%;object-fit:contain}}
+.map-wrap svg{{position:absolute;top:0;left:0;width:100%;height:100%}}
+.legend{{width:340px;overflow-y:auto;background:#fff;border-left:1px solid #e0e0e0}}
+.legend-head{{padding:14px 16px 8px;font-size:10px;font-weight:700;color:#888;
+              letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee;
+              position:sticky;top:0;background:#fff;z-index:2}}
+.sp-row{{display:flex;align-items:center;gap:8px;padding:8px 16px;cursor:pointer;
+         border-bottom:1px solid #f5f5f5;transition:background .1s;position:relative}}
+.sp-row:hover,.sp-row.active{{background:#e8f5e9}}
+.sp-dot{{width:12px;height:12px;border-radius:50%;flex-shrink:0;border:1px solid rgba(0,0,0,.1)}}
 .sp-info{{flex:1;min-width:0}}
-.sp-code{{font-weight:700;font-size:13px}}
-.sp-name{{font-size:11px;color:#666;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.sp-meta{{font-size:10px;color:#999}}
-.sp-count{{font-size:11px;color:#fff;padding:2px 8px;border-radius:10px;font-weight:600;flex-shrink:0}}
-/* Tooltip */
-.tooltip{{position:fixed;z-index:1000;pointer-events:none;opacity:0;transition:opacity .15s;
-          background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.2);
+.sp-code{{font-weight:700;font-size:12px}}
+.sp-name{{font-size:10px;color:#666;font-style:italic;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
+.sp-meta{{font-size:9px;color:#aaa}}
+.sp-badge{{font-size:10px;color:#fff;padding:2px 7px;border-radius:10px;font-weight:600;flex-shrink:0}}
+.tooltip{{position:fixed;z-index:1000;pointer-events:none;opacity:0;transition:opacity .12s;
+          background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.25);
           border:1px solid #e0e0e0;overflow:hidden;max-width:280px}}
 .tooltip.show{{opacity:1}}
 .tooltip img{{display:block;width:260px;height:auto;max-height:200px;object-fit:cover}}
-.tooltip .tt-info{{padding:10px 14px}}
-.tooltip .tt-code{{font-weight:700;font-size:14px}}
-.tooltip .tt-sci{{font-style:italic;font-size:12px;color:#555;margin-top:2px}}
-.tooltip .tt-common{{font-size:11px;color:#888;margin-top:2px}}
-.tooltip .tt-meta{{font-size:10px;color:#aaa;margin-top:4px}}
-.tooltip .tt-noimg{{width:260px;height:120px;background:#f5f5f5;display:flex;
-                    align-items:center;justify-content:center;color:#ccc;font-size:13px}}
-.panel-hidden{{display:none}}
+.tooltip .ti{{padding:10px 14px}}
+.tooltip .tc{{font-weight:700;font-size:13px}}
+.tooltip .ts{{font-style:italic;font-size:11px;color:#555;margin-top:2px}}
+.tooltip .tn{{font-size:10px;color:#888;margin-top:2px}}
+.tooltip .tm{{font-size:9px;color:#aaa;margin-top:4px}}
+.tooltip .noimg{{width:260px;height:80px;background:#f5f5f5;display:flex;
+                 align-items:center;justify-content:center;color:#ccc;font-size:12px}}
 </style>
 </head>
 <body>
 <div class="header">
   <h1>LEGENDA DE ESPECIES</h1>
   <div class="stats">
-    <div class="stat"><div class="num">{total_species}</div><div class="lbl">Especies</div></div>
-    <div class="stat"><div class="num">{total_items}</div><div class="lbl">Itens</div></div>
-    <div class="stat"><div class="num">{len(species_json)}</div><div class="lbl">Categorias</div></div>
+    <div class="stat"><span class="num">{total_species}</span> <span class="lbl">especies</span></div>
+    <div class="stat"><span class="num">{total_items}</span> <span class="lbl">itens</span></div>
   </div>
 </div>
 <div class="tabs" id="tabs"></div>
-<div class="content">
-  <div class="map-panel" id="mapPanel"></div>
-  <div class="legend-panel" id="legendPanel"></div>
+<div class="main">
+  <div class="map-wrap" id="mapWrap">
+    <img id="mapImg">
+    <svg id="mapSvg" xmlns="http://www.w3.org/2000/svg"></svg>
+  </div>
+  <div class="legend" id="legend"></div>
 </div>
 <div class="tooltip" id="tooltip"></div>
 
 <script>
 const DATA = {json.dumps(species_json, ensure_ascii=False)};
-
 const tabs = document.getElementById('tabs');
-const mapPanel = document.getElementById('mapPanel');
-const legendPanel = document.getElementById('legendPanel');
+const mapImg = document.getElementById('mapImg');
+const mapSvg = document.getElementById('mapSvg');
+const legend = document.getElementById('legend');
 const tooltip = document.getElementById('tooltip');
-let activeType = null;
-let activeCode = null;
+let curType = null, curCode = null;
 
-// Build tabs
 Object.keys(DATA).forEach((type, i) => {{
   const d = DATA[type];
-  const tab = document.createElement('div');
-  tab.className = 'tab' + (i === 0 ? ' active' : '');
-  tab.textContent = d.label + ' (' + d.entries.length + ')';
-  tab.onclick = () => showType(type);
-  tabs.appendChild(tab);
+  const t = document.createElement('div');
+  t.className = 'tab' + (i === 0 ? ' active' : '');
+  t.textContent = d.label + ' (' + d.entries.length + ')';
+  t.onclick = () => showType(type);
+  tabs.appendChild(t);
 }});
 
 function showType(type) {{
-  activeType = type;
-  activeCode = null;
-  document.querySelectorAll('.tab').forEach((t, i) => {{
-    t.classList.toggle('active', Object.keys(DATA)[i] === type);
-  }});
-  renderMap(type);
-  renderLegend(type);
+  curType = type; curCode = null;
+  document.querySelectorAll('.tab').forEach((t, i) =>
+    t.classList.toggle('active', Object.keys(DATA)[i] === type));
+  const d = DATA[type];
+  mapImg.src = d.map;
+  renderSvg(d);
+  renderLegend(d);
 }}
 
-function renderMap(type) {{
-  const d = DATA[type];
-  mapPanel.innerHTML = '<img src="' + d.map + '" id="mapImg">';
-  // Add markers
+function renderSvg(d) {{
+  const svgNS = 'http://www.w3.org/2000/svg';
+  mapSvg.setAttribute('viewBox', '0 0 ' + d.pw + ' ' + d.ph);
+  mapSvg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  mapSvg.innerHTML = '';
+
+  const isForr = d.type === 'forracao';
+  const r = d.pw * (d.type === 'arbusto' ? 0.006 : 0.0134);
+
   d.entries.forEach(e => {{
-    const m = document.createElement('div');
-    m.className = 'map-marker';
-    m.style.left = e.x + '%';
-    m.style.top = e.y + '%';
-    m.style.background = e.color;
-    m.dataset.code = e.code;
-    m.onmouseenter = (ev) => {{ highlightSpecies(e.code); showTooltip(ev, e); }};
-    m.onmouseleave = () => {{ unhighlightSpecies(); hideTooltip(); }};
-    m.onclick = () => scrollToSpecies(e.code);
-    mapPanel.appendChild(m);
+    const g = document.createElementNS(svgNS, 'g');
+    g.dataset.code = e.code;
+    g.style.cursor = 'pointer';
+
+    if (isForr && e.svg_paths.length > 0) {{
+      e.svg_paths.forEach(pathD => {{
+        const p = document.createElementNS(svgNS, 'path');
+        p.setAttribute('d', pathD);
+        p.setAttribute('fill', e.color);
+        p.setAttribute('fill-opacity', '0.55');
+        p.setAttribute('stroke', e.color);
+        p.setAttribute('stroke-width', '1');
+        p.setAttribute('stroke-opacity', '0.3');
+        g.appendChild(p);
+      }});
+    }} else {{
+      e.positions.forEach(pos => {{
+        const c = document.createElementNS(svgNS, 'circle');
+        c.setAttribute('cx', pos.x);
+        c.setAttribute('cy', pos.y);
+        c.setAttribute('r', r);
+        c.setAttribute('fill', e.color);
+        c.setAttribute('fill-opacity', '0.75');
+        c.setAttribute('stroke', '#fff');
+        c.setAttribute('stroke-width', '2.5');
+        g.appendChild(c);
+      }});
+    }}
+
+    g.addEventListener('mouseenter', ev => {{ highlight(e.code); showTT(ev, e); }});
+    g.addEventListener('mouseleave', () => {{ unhighlight(); hideTT(); }});
+    mapSvg.appendChild(g);
   }});
 }}
 
-function renderLegend(type) {{
-  const d = DATA[type];
-  legendPanel.innerHTML = '<div class="legend-title">' + d.label + ' - ' + d.entries.length + ' especies</div>';
+function renderLegend(d) {{
+  legend.innerHTML = '<div class="legend-head">' + d.label + '</div>';
   d.entries.forEach(e => {{
     const row = document.createElement('div');
-    row.className = 'species-row';
-    row.id = 'row-' + e.code.replace(/[^a-zA-Z0-9]/g, '_');
-    row.innerHTML = `
-      <div class="sp-dot" style="background:${{e.color}}"></div>
-      <div class="sp-info">
-        <div class="sp-code">${{e.code}}</div>
-        <div class="sp-name">${{e.scientific || ''}}</div>
-        <div class="sp-meta">${{e.common || ''}}</div>
-      </div>
-      <div class="sp-count" style="background:${{e.color}}">${{e.count}}</div>
-    `;
-    row.onmouseenter = (ev) => {{ highlightSpecies(e.code); showTooltip(ev, e); }};
-    row.onmouseleave = () => {{ unhighlightSpecies(); hideTooltip(); }};
-    legendPanel.appendChild(row);
+    row.className = 'sp-row';
+    row.dataset.code = e.code;
+    row.innerHTML =
+      '<div class="sp-dot" style="background:' + e.color + '"></div>' +
+      '<div class="sp-info">' +
+        '<div class="sp-code">' + e.code + '</div>' +
+        (e.scientific ? '<div class="sp-name">' + e.scientific + '</div>' : '') +
+        (e.common ? '<div class="sp-meta">' + e.common + '</div>' : '') +
+      '</div>' +
+      '<div class="sp-badge" style="background:' + e.color + '">' + e.count + '</div>';
+    row.addEventListener('mouseenter', ev => {{ highlight(e.code); showTT(ev, e); }});
+    row.addEventListener('mouseleave', () => {{ unhighlight(); hideTT(); }});
+    legend.appendChild(row);
   }});
 }}
 
-function highlightSpecies(code) {{
-  activeCode = code;
-  document.querySelectorAll('.map-marker').forEach(m => {{
-    m.classList.toggle('highlight', m.dataset.code === code);
-    m.style.opacity = m.dataset.code === code ? '1' : '0.3';
+function highlight(code) {{
+  curCode = code;
+  mapSvg.querySelectorAll('g').forEach(g => {{
+    g.style.opacity = g.dataset.code === code ? '1' : '0.15';
+    if (g.dataset.code === code) {{
+      g.querySelectorAll('circle,path').forEach(el => {{
+        el.setAttribute('stroke-width', '4');
+      }});
+    }}
   }});
-  document.querySelectorAll('.species-row').forEach(r => {{
-    const rCode = r.id.replace('row-', '').replace(/_/g, ' ');
-    r.classList.toggle('active', r.id === 'row-' + code.replace(/[^a-zA-Z0-9]/g, '_'));
-  }});
+  legend.querySelectorAll('.sp-row').forEach(r =>
+    r.classList.toggle('active', r.dataset.code === code));
 }}
 
-function unhighlightSpecies() {{
-  activeCode = null;
-  document.querySelectorAll('.map-marker').forEach(m => {{
-    m.classList.remove('highlight');
-    m.style.opacity = '1';
+function unhighlight() {{
+  curCode = null;
+  mapSvg.querySelectorAll('g').forEach(g => {{
+    g.style.opacity = '1';
+    g.querySelectorAll('circle,path').forEach(el => {{
+      el.setAttribute('stroke-width', el.tagName === 'path' ? '1' : '2.5');
+    }});
   }});
-  document.querySelectorAll('.species-row').forEach(r => r.classList.remove('active'));
+  legend.querySelectorAll('.sp-row').forEach(r => r.classList.remove('active'));
 }}
 
-function showTooltip(ev, entry) {{
-  let html = '';
-  if (entry.img) {{
-    html += '<img src="' + entry.img + '">';
-  }} else {{
-    html += '<div class="tt-noimg">sem foto</div>';
-  }}
-  html += '<div class="tt-info">';
-  html += '<div class="tt-code">' + entry.code + '</div>';
-  if (entry.scientific) html += '<div class="tt-sci">' + entry.scientific + '</div>';
-  if (entry.common) html += '<div class="tt-common">' + entry.common + '</div>';
-  const meta = [entry.origin, entry.sun].filter(Boolean).join(' | ');
-  if (meta) html += '<div class="tt-meta">' + meta + ' | ' + entry.count + ' un.</div>';
-  else html += '<div class="tt-meta">' + entry.count + ' un.</div>';
-  html += '</div>';
-  tooltip.innerHTML = html;
+function showTT(ev, e) {{
+  let h = '';
+  if (e.img) h += '<img src="' + e.img + '">';
+  else h += '<div class="noimg">sem foto</div>';
+  h += '<div class="ti"><div class="tc">' + e.code + '</div>';
+  if (e.scientific) h += '<div class="ts">' + e.scientific + '</div>';
+  if (e.common) h += '<div class="tn">' + e.common + '</div>';
+  const m = [e.origin, e.sun].filter(Boolean).join(' | ');
+  h += '<div class="tm">' + (m ? m + ' | ' : '') + e.count + ' un.</div></div>';
+  tooltip.innerHTML = h;
   tooltip.classList.add('show');
-  positionTooltip(ev);
+  posTT(ev);
 }}
-
-function positionTooltip(ev) {{
-  const tt = tooltip;
-  const x = ev.clientX + 16;
-  const y = ev.clientY - 10;
-  const maxX = window.innerWidth - tt.offsetWidth - 10;
-  const maxY = window.innerHeight - tt.offsetHeight - 10;
-  tt.style.left = Math.min(x, maxX) + 'px';
-  tt.style.top = Math.min(y, maxY) + 'px';
+function posTT(ev) {{
+  const r = tooltip.getBoundingClientRect();
+  let x = ev.clientX + 16, y = ev.clientY - 10;
+  if (x + r.width > window.innerWidth - 8) x = ev.clientX - r.width - 16;
+  if (y + r.height > window.innerHeight - 8) y = window.innerHeight - r.height - 8;
+  if (y < 8) y = 8;
+  tooltip.style.left = x + 'px'; tooltip.style.top = y + 'px';
 }}
-
-document.addEventListener('mousemove', (ev) => {{
-  if (tooltip.classList.contains('show')) positionTooltip(ev);
+document.addEventListener('mousemove', ev => {{
+  if (tooltip.classList.contains('show')) posTT(ev);
 }});
+function hideTT() {{ tooltip.classList.remove('show'); }}
 
-function hideTooltip() {{
-  tooltip.classList.remove('show');
-}}
-
-function scrollToSpecies(code) {{
-  const id = 'row-' + code.replace(/[^a-zA-Z0-9]/g, '_');
-  const el = document.getElementById(id);
-  if (el) el.scrollIntoView({{ behavior: 'smooth', block: 'center' }});
-}}
-
-// Init
 showType(Object.keys(DATA)[0]);
 </script>
 </body>
@@ -415,7 +391,6 @@ showType(Object.keys(DATA)[0]);
 
 def main():
     print("=== Gerando HTML Interativo ===\n")
-
     print("1. Carregando banco de especies...")
     species_db = get_species_database()
     print(f"   {len(species_db)} especies\n")
@@ -423,7 +398,9 @@ def main():
     print("2. Extraindo dados...")
     all_data = extract_all(species_db)
     for ptype, tdata in all_data.items():
-        print(f"   {ptype}: {len(tdata['entries'])} especies")
+        n = len(tdata['entries'])
+        total = sum(e['count'] for e in tdata['entries'])
+        print(f"   {ptype}: {n} especies, {total} itens")
 
     print("\n3. Gerando HTML...")
     html = build_html(all_data)
