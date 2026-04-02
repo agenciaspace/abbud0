@@ -337,6 +337,7 @@ const TYPE_CONFIG = {
 
 let pdfFile = null, results = {}, activeTab = null;
 let pageW = 0, pageH = 0;
+let speciesDB = {}; // Consolidated species database from /api/species
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
@@ -532,6 +533,15 @@ async function processPDF() {
 
         setProgress(20);
         const apiResults = await Promise.all(promises);
+
+        // Load species database in parallel (non-blocking)
+        try {
+            const spResp = await fetch('/api/species');
+            if (spResp.ok) {
+                const spData = await spResp.json();
+                speciesDB = spData.species || {};
+            }
+        } catch(e) { console.warn('Species DB not available:', e); }
 
         // Use pageW/pageH from first result
         if (apiResults.length > 0) {
@@ -1047,27 +1057,95 @@ function renderSlideComposite(type, highlightCodes, scale) {
     return c;
 }
 
-function generateSpeciesSlides(type) {
+function getSpeciesInfo(code) {
+    // Lookup species in the consolidated database, fallback to extraction data
+    if (speciesDB[code]) {
+        var sp = speciesDB[code];
+        return {
+            scientific: sp.scientific_name || '',
+            common: sp.common_name || '',
+            origin: sp.origin || '',
+            sun: sp.sun_exposure || '',
+            typeLabel: sp.type_label || '',
+            oldCode: sp.old_code || '',
+            imageUrl: sp.image_url || '',
+        };
+    }
+    return { scientific: '', common: '', origin: '', sun: '', typeLabel: '', oldCode: '', imageUrl: '' };
+}
+
+function loadImage(url) {
+    return new Promise(function(resolve) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() { resolve(img); };
+        img.onerror = function() { resolve(null); };
+        img.src = url;
+    });
+}
+
+function imageToDataUrl(img, maxW, maxH) {
+    if (!img) return null;
+    var w = img.naturalWidth, h = img.naturalHeight;
+    var scale = Math.min(maxW / w, maxH / h, 1);
+    var cw = Math.round(w * scale), ch = Math.round(h * scale);
+    var c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, cw, ch);
+    return c.toDataURL('image/jpeg', 0.85);
+}
+
+async function generateSpeciesSlides(type) {
     var result = results[type];
     var data = result.data;
     var config = TYPE_CONFIG[type];
     var jsPDFLib = window.jspdf;
 
-    // Collect all species entries
+    statusText.textContent = 'Gerando apresentacao...';
+
+    // Collect all species entries enriched with DB info
     var allEntries = [];
     if (type === 'forracao') {
         for (var label of Object.keys(data.areas)) {
             var info = data.areas[label];
-            allEntries.push({ code: label, color: info.color, name: '', count: info.paths.length, unit: 'areas' });
+            var codes = label.replace(/\([^)]*\)/g, '').split('+').map(function(c) { return c.trim(); });
+            var dbInfo = getSpeciesInfo(codes[0]);
+            allEntries.push({
+                code: label, color: info.color,
+                name: dbInfo.scientific || label,
+                common: dbInfo.common,
+                origin: dbInfo.origin, sun: dbInfo.sun,
+                imageUrl: dbInfo.imageUrl,
+                count: info.paths.length, unit: 'areas'
+            });
         }
     } else {
         for (var code of Object.keys(data.species)) {
             var info = data.species[code];
-            allEntries.push({ code: code, color: info.color, name: info.name || '', count: info.positions.length, unit: 'un.' });
+            var dbInfo = getSpeciesInfo(code);
+            allEntries.push({
+                code: code, color: info.color,
+                name: dbInfo.scientific || info.name || '',
+                common: dbInfo.common || info.common || '',
+                origin: dbInfo.origin, sun: dbInfo.sun,
+                imageUrl: dbInfo.imageUrl,
+                count: info.positions.length, unit: 'un.'
+            });
         }
     }
 
-    if (allEntries.length === 0) return;
+    if (allEntries.length === 0) { statusText.textContent = ''; return; }
+
+    // Preload all species images
+    var imagePromises = allEntries.map(function(entry) {
+        if (entry.imageUrl) return loadImage(entry.imageUrl);
+        return Promise.resolve(null);
+    });
+    var loadedImages = await Promise.all(imagePromises);
+    for (var i = 0; i < allEntries.length; i++) {
+        allEntries[i]._img = loadedImages[i];
+    }
 
     // Group into chunks of 5
     var SPECIES_PER_SLIDE = 5;
@@ -1076,7 +1154,7 @@ function generateSpeciesSlides(type) {
         slides.push(allEntries.slice(i, i + SPECIES_PER_SLIDE));
     }
 
-    // PDF dimensions (landscape 16:9, A4-ish)
+    // PDF dimensions (landscape 16:9)
     var slideW = 1120, slideH = 630;
     var doc = new jsPDFLib.jsPDF({ orientation: 'landscape', unit: 'pt', format: [slideW, slideH] });
 
@@ -1086,8 +1164,11 @@ function generateSpeciesSlides(type) {
     for (var s = 0; s < slides.length; s++) {
         var slideEntries = slides[s];
         var slideCodes = slideEntries.map(function(e) { return e.code; });
+        var hasImages = slideEntries.some(function(e) { return e._img; });
 
         if (s > 0) doc.addPage([slideW, slideH], 'landscape');
+
+        statusText.textContent = 'Gerando slide ' + (s + 1) + ' de ' + totalSlides + '...';
 
         // --- White background ---
         doc.setFillColor(255, 255, 255);
@@ -1109,89 +1190,189 @@ function generateSpeciesSlides(type) {
         doc.setTextColor(130, 130, 130);
         doc.text(config.labelFull + '  |  Especies ' + (s * SPECIES_PER_SLIDE + 1) + '-' + (s * SPECIES_PER_SLIDE + slideEntries.length) + ' de ' + allEntries.length, 24, 42);
 
-        // Slide counter
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(9);
         doc.setTextColor(160, 160, 160);
         doc.text('Slide ' + (s + 1) + '/' + totalSlides, slideW - 24, 30, { align: 'right' });
 
-        // --- Layout: left = implantation map, right = species list ---
+        // --- Layout: 3 columns when images exist ---
         var contentTop = 60;
-        var contentH = slideH - contentTop - 30; // leave footer space
-        var mapAreaW = slideW * 0.55;
-        var listAreaX = mapAreaW + 20;
-        var listAreaW = slideW - listAreaX - 24;
+        var contentH = slideH - contentTop - 30;
+
+        // Map area (left), species list (middle), images (right)
+        var mapAreaW, listAreaX, listAreaW, imgAreaX, imgAreaW;
+        if (hasImages) {
+            mapAreaW = slideW * 0.40;
+            listAreaX = mapAreaW + 12;
+            listAreaW = slideW * 0.28;
+            imgAreaX = listAreaX + listAreaW + 8;
+            imgAreaW = slideW - imgAreaX - 16;
+        } else {
+            mapAreaW = slideW * 0.52;
+            listAreaX = mapAreaW + 16;
+            listAreaW = slideW - listAreaX - 24;
+            imgAreaX = 0;
+            imgAreaW = 0;
+        }
 
         // --- Render implantation with only this slide's species ---
         var mapCanvas = renderSlideComposite(type, slideCodes, mapScale);
         var mapImg = mapCanvas.toDataURL('image/jpeg', 0.90);
 
-        // Scale map to fit within mapAreaW x contentH
-        var mapDispW = mapAreaW - 40;
+        var mapDispW = mapAreaW - 24;
         var mapDispH = mapDispW * (mapCanvas.height / mapCanvas.width);
         if (mapDispH > contentH) {
             mapDispH = contentH;
             mapDispW = mapDispH * (mapCanvas.width / mapCanvas.height);
         }
-        var mapX = 20 + (mapAreaW - 40 - mapDispW) / 2;
+        var mapX = 12 + (mapAreaW - 24 - mapDispW) / 2;
         var mapY = contentTop + (contentH - mapDispH) / 2;
 
-        // Border around map
         doc.setDrawColor(200, 200, 200);
         doc.setLineWidth(0.5);
         doc.rect(mapX - 2, mapY - 2, mapDispW + 4, mapDispH + 4);
         doc.addImage(mapImg, 'JPEG', mapX, mapY, mapDispW, mapDispH);
 
-        // --- Species list on the right ---
-        var listY = contentTop + 10;
-        var entryHeight = Math.min(100, (contentH - 20) / Math.max(slideEntries.length, 1));
+        // --- Species list ---
+        var listY = contentTop + 8;
+        var entryHeight = Math.min(100, (contentH - 28) / Math.max(slideEntries.length, 1));
 
         doc.setFont('helvetica', 'bold');
-        doc.setFontSize(11);
+        doc.setFontSize(10);
         doc.setTextColor(60, 60, 60);
-        doc.text('ESPECIES NESTE SLIDE', listAreaX, listY);
-        listY += 20;
+        doc.text('ESPECIES', listAreaX, listY);
+        listY += 18;
 
         for (var e = 0; e < slideEntries.length; e++) {
             var entry = slideEntries[e];
             var ey = listY + e * entryHeight;
             var rgb = hexToRgb(entry.color);
 
-            // Color marker (circle or square)
+            // Color stripe
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            doc.rect(listAreaX, ey - 2, 4, entryHeight - 10, 'F');
+
+            // Color marker
             doc.setFillColor(rgb.r, rgb.g, rgb.b);
             if (type === 'forracao') {
-                doc.roundedRect(listAreaX, ey - 3, 16, 16, 2, 2, 'F');
+                doc.roundedRect(listAreaX + 10, ey, 12, 12, 2, 2, 'F');
             } else {
-                doc.circle(listAreaX + 8, ey + 5, 8, 'F');
+                doc.circle(listAreaX + 16, ey + 6, 6, 'F');
             }
 
-            // Species code
+            var textX = listAreaX + 28;
+            var lineY = ey;
+
+            // Species code + count badge
             doc.setFont('helvetica', 'bold');
-            doc.setFontSize(12);
+            doc.setFontSize(10);
             doc.setTextColor(34, 34, 34);
-            doc.text(entry.code, listAreaX + 24, ey + 9);
+            doc.text(entry.code, textX, lineY + 9);
+
+            var countText = entry.count + ' ' + entry.unit;
+            var codeWidth = doc.getTextWidth(entry.code);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(255, 255, 255);
+            var badgeW = doc.getTextWidth(countText) + 6;
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            doc.roundedRect(textX + codeWidth + 4, lineY + 1.5, badgeW, 10, 2, 2, 'F');
+            doc.text(countText, textX + codeWidth + 7, lineY + 8.5);
+
+            lineY += 14;
 
             // Scientific name
             if (entry.name) {
                 doc.setFont('helvetica', 'italic');
-                doc.setFontSize(10);
-                doc.setTextColor(100, 100, 100);
-                doc.text(entry.name, listAreaX + 24, ey + 22);
+                doc.setFontSize(8);
+                doc.setTextColor(80, 80, 80);
+                var nameText = entry.name;
+                if (nameText.length > 35) nameText = nameText.substring(0, 33) + '...';
+                doc.text(nameText, textX, lineY + 3);
+                lineY += 11;
             }
 
-            // Count
-            doc.setFont('helvetica', 'normal');
-            doc.setFontSize(9);
-            doc.setTextColor(150, 150, 150);
-            var countText = entry.count + ' ' + entry.unit;
-            doc.text(countText, listAreaX + 24, ey + (entry.name ? 34 : 22));
+            // Common name
+            if (entry.common) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7);
+                doc.setTextColor(120, 120, 120);
+                doc.text(entry.common, textX, lineY + 3);
+                lineY += 10;
+            }
 
-            // Separator line between entries
+            // Origin + sun
+            var metaLine = [];
+            if (entry.origin) metaLine.push(entry.origin);
+            if (entry.sun) metaLine.push(entry.sun);
+            if (metaLine.length > 0) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(6);
+                doc.setTextColor(160, 160, 160);
+                doc.text(metaLine.join(' | '), textX, lineY + 2);
+            }
+
+            // Separator
             if (e < slideEntries.length - 1) {
-                var sepY = ey + entryHeight - 6;
-                doc.setDrawColor(230, 230, 230);
+                var sepY = ey + entryHeight - 8;
+                doc.setDrawColor(235, 235, 235);
                 doc.setLineWidth(0.3);
-                doc.line(listAreaX, sepY, listAreaX + listAreaW, sepY);
+                doc.line(listAreaX + 10, sepY, listAreaX + listAreaW - 4, sepY);
+            }
+        }
+
+        // --- Species images (right column) ---
+        if (hasImages) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(60, 60, 60);
+            doc.text('FOTOS', imgAreaX, contentTop + 8);
+
+            var imgSlotH = (contentH - 28) / Math.max(slideEntries.length, 1);
+            var imgMaxW = imgAreaW - 8;
+            var imgMaxH = imgSlotH - 16;
+
+            for (var e = 0; e < slideEntries.length; e++) {
+                var entry = slideEntries[e];
+                var slotY = contentTop + 26 + e * imgSlotH;
+
+                if (entry._img) {
+                    var dataUrl = imageToDataUrl(entry._img, imgMaxW * 2, imgMaxH * 2);
+                    if (dataUrl) {
+                        // Calculate proportional fit
+                        var iw = entry._img.naturalWidth, ih = entry._img.naturalHeight;
+                        var imgScale = Math.min(imgMaxW / iw, imgMaxH / ih, 1);
+                        var dw = iw * imgScale, dh = ih * imgScale;
+                        var ix = imgAreaX + (imgMaxW - dw) / 2;
+                        var iy = slotY + (imgMaxH - dh) / 2;
+
+                        // Image border
+                        doc.setDrawColor(220, 220, 220);
+                        doc.setLineWidth(0.5);
+                        doc.roundedRect(ix - 2, iy - 2, dw + 4, dh + 4, 3, 3);
+                        doc.addImage(dataUrl, 'JPEG', ix, iy, dw, dh);
+
+                        // Code label below image
+                        var rgb = hexToRgb(entry.color);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(7);
+                        doc.setTextColor(rgb.r, rgb.g, rgb.b);
+                        doc.text(entry.code, ix + dw / 2, iy + dh + 10, { align: 'center' });
+                    }
+                } else {
+                    // No image placeholder
+                    doc.setDrawColor(230, 230, 230);
+                    doc.setLineWidth(0.3);
+                    var phW = Math.min(imgMaxW, imgMaxH * 0.8);
+                    var phH = phW;
+                    var phX = imgAreaX + (imgMaxW - phW) / 2;
+                    var phY = slotY + (imgMaxH - phH) / 2;
+                    doc.roundedRect(phX, phY, phW, phH, 3, 3);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7);
+                    doc.setTextColor(200, 200, 200);
+                    doc.text('sem foto', phX + phW / 2, phY + phH / 2 + 2, { align: 'center' });
+                }
             }
         }
 
@@ -1206,6 +1387,7 @@ function generateSpeciesSlides(type) {
 
     var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
     doc.save('apresentacao_especies_' + suffix + '.pdf');
+    statusText.textContent = '';
 }
 
 function resetApp() {
