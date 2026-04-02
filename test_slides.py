@@ -26,7 +26,7 @@ OUTPUT = os.path.join(BASE_DIR, "teste_apresentacao_arvores.pdf")
 
 SLIDE_W = 1120
 SLIDE_H = 630
-SPECIES_PER_SLIDE = 5
+SPECIES_PER_SLIDE = 8
 
 # Colors
 C_WHITE = (1, 1, 1)
@@ -134,7 +134,7 @@ def render_map_highlighted(pdf_path, all_species, highlight_codes, color_map, pl
                 shape.finish(color=C_WHITE, fill=rgb, fill_opacity=0.75, width=2)
                 shape.commit()
 
-    pix = page.get_pixmap(dpi=48)
+    pix = page.get_pixmap(dpi=36)
     doc.close()
     return pix, page_w, page_h
 
@@ -356,7 +356,7 @@ def build_species_slide(doc, entries, all_species, color_map, pdf_path, plant_ty
             try:
                 # Load and shrink image to reduce PDF size
                 img_pix = fitz.Pixmap(entry["image_path"])
-                img_pix = shrink_pixmap(img_pix, max_dim=280)
+                img_pix = shrink_pixmap(img_pix, max_dim=180)
                 iw, ih = img_pix.width, img_pix.height
                 sc = min(photo_max_w / max(iw, 1), photo_max_h / max(ih, 1), 1)
                 dw, dh = iw * sc, ih * sc
