@@ -64,6 +64,24 @@ def find_image(code):
     return None
 
 
+def shrink_pixmap(pix, max_dim=300):
+    """Shrink a pixmap if larger than max_dim on either side."""
+    if pix.width <= max_dim and pix.height <= max_dim:
+        return pix
+    scale = max_dim / max(pix.width, pix.height)
+    new_w = int(pix.width * scale)
+    new_h = int(pix.height * scale)
+    # Use fitz transform to scale
+    mat = fitz.Matrix(scale, scale)
+    # Re-create via temporary PDF
+    tmp = fitz.open()
+    p = tmp.new_page(width=pix.width, height=pix.height)
+    p.insert_image(p.rect, pixmap=pix)
+    small_pix = p.get_pixmap(matrix=mat)
+    tmp.close()
+    return small_pix
+
+
 def fit_image_rect(path, area_x, area_y, max_w, max_h):
     """Calculate proportional fit rect for an image."""
     try:
@@ -116,7 +134,7 @@ def render_map_highlighted(pdf_path, all_species, highlight_codes, color_map, pl
                 shape.finish(color=C_WHITE, fill=rgb, fill_opacity=0.75, width=2)
                 shape.commit()
 
-    pix = page.get_pixmap(dpi=72)
+    pix = page.get_pixmap(dpi=48)
     doc.close()
     return pix, page_w, page_h
 
@@ -336,14 +354,21 @@ def build_species_slide(doc, entries, all_species, color_map, pdf_path, plant_ty
 
         if entry.get("image_path") and os.path.exists(entry["image_path"]):
             try:
-                img_rect = fit_image_rect(entry["image_path"],
-                                          right_x + 4, slot_y + 2,
-                                          photo_max_w, photo_max_h)
+                # Load and shrink image to reduce PDF size
+                img_pix = fitz.Pixmap(entry["image_path"])
+                img_pix = shrink_pixmap(img_pix, max_dim=280)
+                iw, ih = img_pix.width, img_pix.height
+                sc = min(photo_max_w / max(iw, 1), photo_max_h / max(ih, 1), 1)
+                dw, dh = iw * sc, ih * sc
+                ix = right_x + 4 + (photo_max_w - dw) / 2
+                iy = slot_y + 2 + (photo_max_h - dh) / 2
+                img_rect = fitz.Rect(ix, iy, ix + dw, iy + dh)
+
                 # Colored border around photo
                 border = fitz.Rect(img_rect.x0 - 2, img_rect.y0 - 2,
                                    img_rect.x1 + 2, img_rect.y1 + 2)
                 page.draw_rect(border, color=rgb, width=2)
-                page.insert_image(img_rect, filename=entry["image_path"])
+                page.insert_image(img_rect, pixmap=img_pix)
 
                 # Name label below photo (centered, with colored background)
                 common = entry.get("common", "") or entry.get("scientific", "") or entry["code"]
@@ -548,8 +573,8 @@ def main():
                 running_slide, total_slides, section_label
             )
 
-    # Save
-    out_doc.save(OUTPUT)
+    # Save with compression
+    out_doc.save(OUTPUT, deflate=True, garbage=4)
     out_doc.close()
     size_kb = os.path.getsize(OUTPUT) / 1024
     print(f"\n=== Apresentacao gerada: {OUTPUT} ({size_kb:.0f} KB, {running_slide} slides) ===")
