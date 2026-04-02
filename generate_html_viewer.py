@@ -218,6 +218,32 @@ body{{font-family:'Segoe UI',system-ui,sans-serif;background:#f5f5f5;color:#222;
 .tooltip .tm{{font-size:9px;color:#aaa;margin-top:4px}}
 .tooltip .noimg{{width:260px;height:80px;background:#f5f5f5;display:flex;
                  align-items:center;justify-content:center;color:#ccc;font-size:12px}}
+@media(max-width:900px){{
+  body{{overflow:auto;height:auto}}
+  .header{{flex-direction:column;gap:6px;text-align:center;padding:12px 16px}}
+  .header h1{{font-size:14px}}
+  .header .stats{{justify-content:center}}
+  .header .stat .num{{font-size:16px}}
+  .tabs{{overflow-x:auto;-webkit-overflow-scrolling:touch;flex-wrap:nowrap}}
+  .tab{{white-space:nowrap;padding:8px 16px;font-size:11px;flex-shrink:0}}
+  .main{{flex-direction:column;height:auto;min-height:0}}
+  .map-wrap{{width:100%;height:auto;aspect-ratio:16/11;flex:none;min-height:200px;max-height:55vh}}
+  .legend{{width:100%;height:auto;border-left:none;border-top:1px solid #e0e0e0;
+          overflow-y:visible;max-height:none}}
+  .legend-head{{position:relative}}
+  .sp-row{{padding:10px 12px}}
+  .tooltip{{display:none !important}}
+}}
+@media(max-width:480px){{
+  .header{{padding:10px 12px}}
+  .header h1{{font-size:12px;letter-spacing:0.5px}}
+  .header .stat .num{{font-size:14px}}
+  .header .stat .lbl{{font-size:8px}}
+  .tab{{padding:7px 12px;font-size:10px}}
+  .sp-code{{font-size:11px}}
+  .sp-name{{font-size:9px}}
+  .sp-badge{{font-size:9px;padding:2px 5px}}
+}}
 </style>
 </head>
 <body>
