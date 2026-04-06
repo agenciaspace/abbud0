@@ -148,6 +148,32 @@
         .download-card .format { font-size: 22px; font-weight: 700; letter-spacing: 2px; margin-bottom: 6px; }
         .download-card .desc { font-size: 11px; color: var(--text2); }
 
+        .output-hero {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+            padding: 20px 24px; border-top: 2px solid var(--accent);
+        }
+        .output-card {
+            background: linear-gradient(135deg, var(--surface2), var(--surface));
+            border: 2px solid var(--border); border-radius: 12px;
+            padding: 24px; cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .output-card:hover { border-color: var(--accent); transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(76,175,80,0.15); }
+        .output-card .out-icon { font-size: 32px; margin-bottom: 8px; }
+        .output-card .out-title { font-size: 16px; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; margin-bottom: 6px; }
+        .output-card .out-title.html-title { color: #2196F3; }
+        .output-card .out-title.pdf-title { color: var(--accent); }
+        .output-card .out-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+        .output-card .out-badge { display: inline-block; margin-top: 10px; padding: 4px 14px;
+            border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .output-card .badge-html { background: rgba(33,150,243,0.15); color: #2196F3; }
+        .output-card .badge-pdf { background: rgba(76,175,80,0.15); color: var(--accent); }
+
+        @media (max-width: 768px) {
+            .output-hero { grid-template-columns: 1fr; }
+        }
+
         .new-upload { text-align: center; margin-top: 20px; }
 
         .tabs-bar {
@@ -263,6 +289,20 @@
 
         <div class="preview-section" id="previewSection">
             <div class="preview-card">
+                <div class="output-hero">
+                    <div class="output-card" onclick="generateInteractiveHTML()">
+                        <div class="out-icon">&#127760;</div>
+                        <div class="out-title html-title">HTML Interativo</div>
+                        <div class="out-desc">Mapa com especies posicionadas, tooltips com foto ao passar o mouse, legenda por tipo</div>
+                        <div class="out-badge badge-html">Abrir no navegador</div>
+                    </div>
+                    <div class="output-card" onclick="generateSlidesPDF()">
+                        <div class="out-icon">&#128218;</div>
+                        <div class="out-title pdf-title">Apresentacao PDF</div>
+                        <div class="out-desc">Capa executiva, slides por especie com fotos, mapa destacado e dados consolidados</div>
+                        <div class="out-badge badge-pdf">Baixar PDF</div>
+                    </div>
+                </div>
                 <div class="tabs-bar" id="tabsBar"></div>
                 <div id="tabPanels"></div>
             </div>
@@ -1261,6 +1301,156 @@ async function generateSpeciesSlides(type) {
     var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
     doc.save('apresentacao_especies_' + suffix + '.pdf');
     statusText.textContent = '';
+}
+
+async function generateInteractiveHTML() {
+    statusText.textContent = 'Gerando HTML interativo...';
+    try {
+        // Call the species API to get all data
+        var spResp = await fetch('/api/species');
+        var spData = spResp.ok ? await spResp.json() : { species: {} };
+        var db = spData.species || {};
+
+        // For each processed type, build SVG data
+        var htmlTypes = {};
+        for (var type of Object.keys(results)) {
+            var data = results[type].data;
+            var config = TYPE_CONFIG[type];
+            var entries = [];
+
+            if (type === 'forracao') {
+                for (var label of Object.keys(data.areas || {})) {
+                    var info = data.areas[label];
+                    var codes = label.replace(/\([^)]*\)/g, '').split('+').map(function(c) { return c.trim(); });
+                    var sp = db[codes[0]] || {};
+                    entries.push({
+                        code: label, color: info.color, count: info.paths.length,
+                        scientific: sp.scientific_name || '', common: sp.common_name || '',
+                        origin: sp.origin || '', sun: sp.sun_exposure || '',
+                        img: sp.image_url || '', positions: [],
+                        svg_paths: info.paths.map(function(path) {
+                            return 'M ' + path.map(function(p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' L ') + ' Z';
+                        })
+                    });
+                }
+            } else {
+                for (var code of Object.keys(data.species || {})) {
+                    var info = data.species[code];
+                    var sp = db[code] || {};
+                    entries.push({
+                        code: code, color: info.color, count: info.positions.length,
+                        scientific: sp.scientific_name || info.name || '',
+                        common: sp.common_name || '', origin: sp.origin || '',
+                        sun: sp.sun_exposure || '', img: sp.image_url || '',
+                        positions: info.positions, svg_paths: []
+                    });
+                }
+            }
+            htmlTypes[type] = {
+                label: config.labelFull, type: type,
+                pw: pageW, ph: pageH, entries: entries
+            };
+        }
+
+        // Get map as base64
+        var bgCanvas = results[Object.keys(results)[0]].bgCanvas;
+        for (var type of Object.keys(htmlTypes)) {
+            htmlTypes[type].map = bgCanvas.toDataURL('image/jpeg', 0.7);
+        }
+
+        // Preload species images as base64
+        for (var type of Object.keys(htmlTypes)) {
+            for (var e of htmlTypes[type].entries) {
+                if (e.img) {
+                    try {
+                        var imgEl = await loadImage(e.img);
+                        if (imgEl) e.img = imageToDataUrl(imgEl, 500, 400);
+                        else e.img = '';
+                    } catch(x) { e.img = ''; }
+                }
+            }
+        }
+
+        var total = Object.values(htmlTypes).reduce(function(s, d) { return s + d.entries.length; }, 0);
+        var totalItems = Object.values(htmlTypes).reduce(function(s, d) {
+            return s + d.entries.reduce(function(s2, e) { return s2 + e.count; }, 0);
+        }, 0);
+
+        // Build HTML string
+        var html = buildInteractiveHTML(htmlTypes, total, totalItems);
+        var blob = new Blob([html], { type: 'text/html' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'especies_interativo.html';
+        a.click();
+        statusText.textContent = '';
+    } catch(err) {
+        console.error(err);
+        statusText.textContent = 'Erro ao gerar HTML: ' + err.message;
+    }
+}
+
+function buildInteractiveHTML(types, total, totalItems) {
+    return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Legenda de Especies</title><style>' +
+    '*{margin:0;padding:0;box-sizing:border-box}' +
+    'body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#222;overflow:hidden;height:100vh}' +
+    '.hd{background:#1a1d21;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}' +
+    '.hd h1{font-size:15px;font-weight:600;letter-spacing:1px}' +
+    '.hd .st{display:flex;gap:16px}.hd .n{font-size:18px;font-weight:700;color:#4CAF50}.hd .l{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px}' +
+    '.tabs{display:flex;background:#242830}.tb{padding:9px 20px;cursor:pointer;color:#888;font-size:11px;font-weight:600;border-bottom:3px solid transparent;transition:all .15s}' +
+    '.tb:hover{color:#ccc}.tb.on{color:#4CAF50;border-bottom-color:#4CAF50;background:#1a1d21}' +
+    '.mn{display:flex;height:calc(100vh - 90px)}.mp{flex:1;position:relative;background:#fff;overflow:hidden}' +
+    '.mp img{display:block;width:100%;height:100%;object-fit:contain}' +
+    '.mp svg{position:absolute;top:0;left:0;width:100%;height:100%}' +
+    '.lg{width:320px;overflow-y:auto;background:#fff;border-left:1px solid #e0e0e0}' +
+    '.lh{padding:12px 14px 6px;font-size:9px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:2}' +
+    '.sr{display:flex;align-items:center;gap:7px;padding:7px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background .1s}' +
+    '.sr:hover,.sr.on{background:#e8f5e9}.sd{width:10px;height:10px;border-radius:50%;flex-shrink:0}' +
+    '.si{flex:1;min-width:0}.sc{font-weight:700;font-size:11px}.sn{font-size:9px;color:#666;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sm{font-size:8px;color:#aaa}' +
+    '.sb{font-size:9px;color:#fff;padding:2px 6px;border-radius:10px;font-weight:600;flex-shrink:0}' +
+    '.tt{position:fixed;z-index:1000;pointer-events:none;opacity:0;transition:opacity .12s;background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.25);border:1px solid #e0e0e0;overflow:hidden;max-width:260px}' +
+    '.tt.show{opacity:1}.tt img{display:block;width:240px;height:auto;max-height:180px;object-fit:cover}' +
+    '.tt .ti{padding:8px 12px}.tt .tc{font-weight:700;font-size:12px}.tt .ts{font-style:italic;font-size:10px;color:#555;margin-top:2px}.tt .tn{font-size:9px;color:#888;margin-top:2px}.tt .tm{font-size:8px;color:#aaa;margin-top:3px}' +
+    '.tt .ni{width:240px;height:60px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:11px}' +
+    '@media(max-width:900px){body{overflow:auto;height:auto}.hd{flex-direction:column;gap:6px;text-align:center;padding:10px}.tabs{overflow-x:auto}.tb{white-space:nowrap;flex-shrink:0}' +
+    '.mn{flex-direction:column;height:auto}.mp{width:100%;height:auto;aspect-ratio:16/11;flex:none;max-height:55vh}.lg{width:100%;height:auto;border-left:none;border-top:1px solid #e0e0e0;overflow-y:visible;max-height:none}.lh{position:relative}.tt{display:none!important}}' +
+    '</style></head><body>' +
+    '<div class="hd"><h1>LEGENDA DE ESPECIES</h1><div class="st"><div><span class="n">' + total + '</span> <span class="l">especies</span></div><div><span class="n">' + totalItems + '</span> <span class="l">itens</span></div></div></div>' +
+    '<div class="tabs" id="tabs"></div><div class="mn"><div class="mp" id="mp"><img id="mi"><svg id="ms" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="lg" id="lg"></div></div>' +
+    '<div class="tt" id="tt"></div>' +
+    '<script>var D=' + JSON.stringify(types) + ';' +
+    'var tabs=document.getElementById("tabs"),mi=document.getElementById("mi"),ms=document.getElementById("ms"),lg=document.getElementById("lg"),tt=document.getElementById("tt");' +
+    'Object.keys(D).forEach(function(t,i){var d=D[t],b=document.createElement("div");b.className="tb"+(i===0?" on":"");b.textContent=d.label+" ("+d.entries.length+")";b.onclick=function(){show(t)};tabs.appendChild(b)});' +
+    'function show(t){document.querySelectorAll(".tb").forEach(function(b,i){b.classList.toggle("on",Object.keys(D)[i]===t)});var d=D[t];mi.src=d.map;' +
+    'ms.setAttribute("viewBox","0 0 "+d.pw+" "+d.ph);ms.setAttribute("preserveAspectRatio","xMidYMid meet");ms.innerHTML="";' +
+    'var isF=d.type==="forracao",r=d.pw*(d.type==="arbusto"?0.006:0.0134);' +
+    'd.entries.forEach(function(e){var g=document.createElementNS("http://www.w3.org/2000/svg","g");g.dataset.code=e.code;g.style.cursor="pointer";' +
+    'if(isF&&e.svg_paths.length>0){e.svg_paths.forEach(function(pd){var p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",pd);p.setAttribute("fill",e.color);p.setAttribute("fill-opacity","0.55");p.setAttribute("stroke",e.color);p.setAttribute("stroke-width","1");g.appendChild(p)})}' +
+    'else{e.positions.forEach(function(pos){var c=document.createElementNS("http://www.w3.org/2000/svg","circle");c.setAttribute("cx",pos.x);c.setAttribute("cy",pos.y);c.setAttribute("r",r);c.setAttribute("fill",e.color);c.setAttribute("fill-opacity","0.75");c.setAttribute("stroke","#fff");c.setAttribute("stroke-width","2.5");g.appendChild(c)})}' +
+    'g.onmouseenter=function(ev){hl(e.code);stt(ev,e)};g.onmouseleave=function(){ul();htt()};ms.appendChild(g)});' +
+    'lg.innerHTML="<div class=\\"lh\\">"+d.label+"</div>";d.entries.forEach(function(e){var row=document.createElement("div");row.className="sr";row.dataset.code=e.code;' +
+    'row.innerHTML="<div class=\\"sd\\" style=\\"background:"+e.color+"\\"></div><div class=\\"si\\"><div class=\\"sc\\">"+e.code+"</div>"+(e.scientific?"<div class=\\"sn\\">"+e.scientific+"</div>":"")+(e.common?"<div class=\\"sm\\">"+e.common+"</div>":"")+"</div><div class=\\"sb\\" style=\\"background:"+e.color+"\\">"+e.count+"</div>";' +
+    'row.onmouseenter=function(ev){hl(e.code);stt(ev,e)};row.onmouseleave=function(){ul();htt()};lg.appendChild(row)})}' +
+    'function hl(c){ms.querySelectorAll("g").forEach(function(g){g.style.opacity=g.dataset.code===c?"1":"0.15"});lg.querySelectorAll(".sr").forEach(function(r){r.classList.toggle("on",r.dataset.code===c)})}' +
+    'function ul(){ms.querySelectorAll("g").forEach(function(g){g.style.opacity="1"});lg.querySelectorAll(".sr").forEach(function(r){r.classList.remove("on")})}' +
+    'function stt(ev,e){var h="";if(e.img)h+="<img src=\\""+e.img+"\\">";else h+="<div class=\\"ni\\">sem foto</div>";h+="<div class=\\"ti\\"><div class=\\"tc\\">"+e.code+"</div>";if(e.scientific)h+="<div class=\\"ts\\">"+e.scientific+"</div>";if(e.common)h+="<div class=\\"tn\\">"+e.common+"</div>";var m=[e.origin,e.sun].filter(Boolean).join(" | ");h+="<div class=\\"tm\\">"+(m?m+" | ":"")+e.count+" un.</div></div>";tt.innerHTML=h;tt.classList.add("show");ptt(ev)}' +
+    'function ptt(ev){var x=ev.clientX+16,y=ev.clientY-10,r=tt.getBoundingClientRect();if(x+280>window.innerWidth)x=ev.clientX-280-16;if(y+r.height>window.innerHeight-8)y=window.innerHeight-r.height-8;if(y<8)y=8;tt.style.left=x+"px";tt.style.top=y+"px"}' +
+    'document.addEventListener("mousemove",function(ev){if(tt.classList.contains("show"))ptt(ev)});' +
+    'function htt(){tt.classList.remove("show")}' +
+    'show(Object.keys(D)[0]);' +
+    '<\/script></body></html>';
+}
+
+async function generateSlidesPDF() {
+    // Trigger slides generation for all processed types
+    var types = Object.keys(results);
+    if (types.length === 0) return;
+    // Generate for the first type that has data, or all combined
+    for (var i = 0; i < types.length; i++) {
+        await generateSpeciesSlides(types[i]);
+    }
 }
 
 function resetApp() {
