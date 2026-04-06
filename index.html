@@ -200,10 +200,94 @@
             display: flex; justify-content: flex-end; gap: 12px;
         }
 
+        /* Interactive viewer modal */
+        .interactive-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); z-index: 2000;
+            display: flex; flex-direction: column;
+        }
+        .interactive-toolbar {
+            background: var(--surface); border-bottom: 1px solid var(--border);
+            padding: 10px 20px; display: flex; align-items: center; justify-content: space-between;
+            flex-shrink: 0; z-index: 10;
+        }
+        .interactive-toolbar h2 { font-size: 14px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+        .interactive-toolbar .toolbar-actions { display: flex; gap: 8px; align-items: center; }
+        .interactive-toolbar .toolbar-btn {
+            background: var(--surface2); border: 1px solid var(--border); color: var(--text);
+            padding: 6px 14px; border-radius: 6px; cursor: pointer; font-size: 13px;
+            transition: all 0.15s;
+        }
+        .interactive-toolbar .toolbar-btn:hover { border-color: var(--accent); color: var(--accent); }
+        .interactive-toolbar .zoom-info { font-size: 12px; color: var(--text2); min-width: 50px; text-align: center; }
+        .interactive-body {
+            flex: 1; display: flex; overflow: hidden; position: relative;
+        }
+        .interactive-map-area {
+            flex: 1; overflow: hidden; cursor: grab; position: relative;
+        }
+        .interactive-map-area.dragging { cursor: grabbing; }
+        .interactive-map-inner {
+            transform-origin: 0 0; position: absolute; top: 0; left: 0;
+        }
+        .interactive-map-inner canvas { display: block; }
+        .interactive-map-inner svg {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: all;
+        }
+        .interactive-map-inner svg circle, .interactive-map-inner svg path {
+            cursor: pointer; transition: opacity 0.15s;
+        }
+        .interactive-map-inner svg circle:hover, .interactive-map-inner svg path:hover {
+            opacity: 1 !important; filter: brightness(1.2);
+        }
+        .interactive-sidebar {
+            width: 320px; background: var(--surface); border-left: 1px solid var(--border);
+            overflow-y: auto; flex-shrink: 0; padding: 16px;
+        }
+        .interactive-sidebar h3 {
+            font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+            text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+        }
+        .species-list-item {
+            display: flex; align-items: flex-start; gap: 10px;
+            padding: 10px 8px; border-radius: 8px; cursor: pointer;
+            transition: background 0.1s; border-bottom: 1px solid var(--border);
+        }
+        .species-list-item:hover { background: var(--surface2); }
+        .species-list-item.highlighted { background: rgba(76,175,80,0.12); border-color: var(--accent); }
+        .species-list-item .sli-dot { width: 14px; height: 14px; border-radius: 50%; flex-shrink: 0; margin-top: 2px; }
+        .species-list-item .sli-dot.square { border-radius: 3px; }
+        .species-list-item .sli-info { flex: 1; min-width: 0; }
+        .species-list-item .sli-code { font-weight: 700; font-size: 13px; }
+        .species-list-item .sli-name { font-size: 11px; color: var(--text2); font-style: italic; }
+        .species-list-item .sli-count { font-size: 11px; color: var(--text2); }
+        .species-list-item .sli-photo {
+            width: 48px; height: 48px; border-radius: 6px; object-fit: cover;
+            flex-shrink: 0; background: var(--surface2); border: 1px solid var(--border);
+        }
+        .interactive-tooltip {
+            position: fixed; z-index: 2100; pointer-events: none;
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 10px; padding: 12px 16px; max-width: 280px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5); display: none;
+        }
+        .interactive-tooltip.visible { display: block; }
+        .interactive-tooltip .tt-code { font-weight: 700; font-size: 14px; margin-bottom: 2px; }
+        .interactive-tooltip .tt-name { font-size: 12px; color: var(--text2); font-style: italic; }
+        .interactive-tooltip .tt-common { font-size: 11px; color: var(--text2); margin-top: 2px; }
+        .interactive-tooltip .tt-count { font-size: 11px; color: var(--accent); margin-top: 4px; }
+        .interactive-tooltip .tt-photo {
+            width: 100%; max-height: 120px; object-fit: cover;
+            border-radius: 6px; margin-top: 8px;
+        }
+        .interactive-tooltip .tt-meta { font-size: 10px; color: var(--text2); margin-top: 4px; }
+
         @media (max-width: 768px) {
             .container { padding: 16px; }
             .upload-zone { padding: 40px 20px; }
             .type-selector { flex-direction: column; align-items: center; }
+            .interactive-sidebar { width: 240px; }
         }
     </style>
 </head>
@@ -524,6 +608,23 @@ function renderTabs(types) {
         // Download grid
         const dlGrid = document.createElement('div');
         dlGrid.className = 'download-grid';
+
+        // Interactive viewer — primary option
+        const interCard = document.createElement('div');
+        interCard.className = 'download-card';
+        interCard.style.borderColor = 'var(--accent)';
+        interCard.style.background = 'rgba(76,175,80,0.06)';
+        interCard.setAttribute('onclick', 'openInteractiveViewer("' + type + '")');
+        const interFormat = document.createElement('div');
+        interFormat.className = 'format';
+        interFormat.style.color = 'var(--accent)';
+        interFormat.textContent = 'INTERATIVO';
+        const interDesc = document.createElement('div');
+        interDesc.className = 'desc';
+        interDesc.textContent = 'Mapa com zoom, tooltips e fotos';
+        interCard.appendChild(interFormat);
+        interCard.appendChild(interDesc);
+        dlGrid.appendChild(interCard);
 
         const pngCard = document.createElement('div');
         pngCard.className = 'download-card';
@@ -1261,6 +1362,350 @@ async function generateSpeciesSlides(type) {
     var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
     doc.save('apresentacao_especies_' + suffix + '.pdf');
     statusText.textContent = '';
+}
+
+// --- Interactive Viewer ---
+
+function openInteractiveViewer(type) {
+    var result = results[type];
+    var data = result.data;
+    var bgCanvas = result.bgCanvas;
+    var config = TYPE_CONFIG[type];
+
+    // Create overlay
+    var overlay = document.createElement('div');
+    overlay.className = 'interactive-overlay';
+    overlay.id = 'interactiveOverlay';
+
+    // Toolbar
+    var toolbar = document.createElement('div');
+    toolbar.className = 'interactive-toolbar';
+    var title = document.createElement('h2');
+    title.textContent = config.labelFull + ' — Visualizacao Interativa';
+    var actions = document.createElement('div');
+    actions.className = 'toolbar-actions';
+
+    var zoomOutBtn = document.createElement('button');
+    zoomOutBtn.className = 'toolbar-btn';
+    zoomOutBtn.textContent = '−';
+    zoomOutBtn.title = 'Diminuir zoom';
+    var zoomInfo = document.createElement('span');
+    zoomInfo.className = 'zoom-info';
+    zoomInfo.textContent = '100%';
+    var zoomInBtn = document.createElement('button');
+    zoomInBtn.className = 'toolbar-btn';
+    zoomInBtn.textContent = '+';
+    zoomInBtn.title = 'Aumentar zoom';
+    var zoomFitBtn = document.createElement('button');
+    zoomFitBtn.className = 'toolbar-btn';
+    zoomFitBtn.textContent = 'Ajustar';
+    zoomFitBtn.title = 'Ajustar ao tamanho da tela';
+    var closeBtn = document.createElement('button');
+    closeBtn.className = 'toolbar-btn';
+    closeBtn.textContent = 'Fechar';
+    closeBtn.style.color = '#F44336';
+
+    actions.appendChild(zoomOutBtn);
+    actions.appendChild(zoomInfo);
+    actions.appendChild(zoomInBtn);
+    actions.appendChild(zoomFitBtn);
+    actions.appendChild(closeBtn);
+    toolbar.appendChild(title);
+    toolbar.appendChild(actions);
+    overlay.appendChild(toolbar);
+
+    // Body
+    var body = document.createElement('div');
+    body.className = 'interactive-body';
+
+    // Map area
+    var mapArea = document.createElement('div');
+    mapArea.className = 'interactive-map-area';
+    var mapInner = document.createElement('div');
+    mapInner.className = 'interactive-map-inner';
+
+    // Canvas (background + overlay)
+    var canvas = document.createElement('canvas');
+    canvas.width = bgCanvas.width;
+    canvas.height = bgCanvas.height;
+    var ctx = canvas.getContext('2d');
+    ctx.drawImage(bgCanvas, 0, 0);
+    mapInner.appendChild(canvas);
+
+    // SVG overlay with interactive elements
+    var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 ' + pageW + ' ' + pageH);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    svg.style.width = canvas.width + 'px';
+    svg.style.height = canvas.height + 'px';
+
+    // Build species lookup for SVG elements
+    var speciesElements = {};
+
+    if (type === 'forracao') {
+        var areas = data.areas;
+        for (var label of Object.keys(areas)) {
+            var areaInfo = areas[label];
+            speciesElements[label] = [];
+            for (var path of areaInfo.paths) {
+                if (path.length < 2) continue;
+                var dAttr = 'M ' + path.map(function(p) { return p[0] + ',' + p[1]; }).join(' L ') + ' Z';
+                var el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                el.setAttribute('d', dAttr);
+                el.setAttribute('fill', areaInfo.color);
+                el.setAttribute('fill-opacity', '0.6');
+                el.setAttribute('stroke', areaInfo.color);
+                el.setAttribute('stroke-width', '0.5');
+                el.setAttribute('stroke-opacity', '0.3');
+                el.dataset.species = label;
+                svg.appendChild(el);
+                speciesElements[label].push(el);
+            }
+        }
+    } else {
+        var species = data.species;
+        var r = pageW * config.radiusRatio;
+        var dashArray = type === 'arbusto' ? '4,2' : '';
+        for (var code of Object.keys(species)) {
+            var info = species[code];
+            speciesElements[code] = [];
+            for (var p of info.positions) {
+                var c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', r);
+                c.setAttribute('fill', info.color); c.setAttribute('fill-opacity', String(CIRCLE_OPACITY));
+                c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', '2.5');
+                if (dashArray) c.setAttribute('stroke-dasharray', dashArray);
+                c.dataset.species = code;
+                svg.appendChild(c);
+                speciesElements[code].push(c);
+            }
+        }
+    }
+
+    mapInner.appendChild(svg);
+    mapArea.appendChild(mapInner);
+    body.appendChild(mapArea);
+
+    // Sidebar
+    var sidebar = document.createElement('div');
+    sidebar.className = 'interactive-sidebar';
+    var sideTitle = document.createElement('h3');
+    sideTitle.textContent = 'Especies (' + (type === 'forracao' ? Object.keys(data.areas).length : Object.keys(data.species).length) + ')';
+    sidebar.appendChild(sideTitle);
+
+    var speciesList = type === 'forracao' ? Object.keys(data.areas) : Object.keys(data.species);
+    var listItems = {};
+
+    for (var idx = 0; idx < speciesList.length; idx++) {
+        var sp = speciesList[idx];
+        var spInfo = type === 'forracao' ? data.areas[sp] : data.species[sp];
+        var dbInfo = getSpeciesInfo(type === 'forracao' ? sp.replace(/\([^)]*\)/g, '').split('+')[0].trim() : sp);
+        var count = type === 'forracao' ? spInfo.paths.length : spInfo.positions.length;
+        var unitLabel = type === 'forracao' ? 'areas' : 'un.';
+
+        var item = document.createElement('div');
+        item.className = 'species-list-item';
+        item.dataset.species = sp;
+
+        var dot = document.createElement('div');
+        dot.className = 'sli-dot' + (type === 'forracao' ? ' square' : '');
+        dot.style.background = spInfo.color;
+
+        var infoDiv = document.createElement('div');
+        infoDiv.className = 'sli-info';
+        var codeEl = document.createElement('div');
+        codeEl.className = 'sli-code';
+        codeEl.textContent = sp;
+        infoDiv.appendChild(codeEl);
+
+        var nameText = dbInfo.scientific || (type !== 'forracao' && spInfo.name ? spInfo.name : '');
+        if (nameText) {
+            var nameEl = document.createElement('div');
+            nameEl.className = 'sli-name';
+            nameEl.textContent = nameText;
+            infoDiv.appendChild(nameEl);
+        }
+        if (dbInfo.common) {
+            var commonEl = document.createElement('div');
+            commonEl.className = 'sli-name';
+            commonEl.style.fontStyle = 'normal';
+            commonEl.textContent = dbInfo.common;
+            infoDiv.appendChild(commonEl);
+        }
+        var countEl = document.createElement('div');
+        countEl.className = 'sli-count';
+        countEl.textContent = count + ' ' + unitLabel;
+        infoDiv.appendChild(countEl);
+
+        item.appendChild(dot);
+        item.appendChild(infoDiv);
+
+        if (dbInfo.imageUrl) {
+            var photo = document.createElement('img');
+            photo.className = 'sli-photo';
+            photo.src = dbInfo.imageUrl;
+            photo.alt = sp;
+            photo.loading = 'lazy';
+            item.appendChild(photo);
+        }
+
+        sidebar.appendChild(item);
+        listItems[sp] = item;
+
+        // Click to highlight on map
+        (function(speciesCode, listItem) {
+            listItem.addEventListener('click', function() {
+                // Toggle highlight
+                var wasHighlighted = listItem.classList.contains('highlighted');
+                // Clear all highlights
+                Object.values(listItems).forEach(function(li) { li.classList.remove('highlighted'); });
+                // Reset all opacities
+                svg.querySelectorAll('circle, path').forEach(function(el) {
+                    el.setAttribute('fill-opacity', type === 'forracao' ? '0.6' : String(CIRCLE_OPACITY));
+                });
+
+                if (!wasHighlighted) {
+                    listItem.classList.add('highlighted');
+                    // Dim all others, highlight selected
+                    svg.querySelectorAll('circle, path').forEach(function(el) {
+                        if (el.dataset.species === speciesCode) {
+                            el.setAttribute('fill-opacity', '1');
+                        } else {
+                            el.setAttribute('fill-opacity', '0.1');
+                        }
+                    });
+                }
+            });
+        })(sp, item);
+    }
+
+    body.appendChild(sidebar);
+    overlay.appendChild(body);
+
+    // Tooltip
+    var tooltip = document.createElement('div');
+    tooltip.className = 'interactive-tooltip';
+    tooltip.id = 'interactiveTooltip';
+    overlay.appendChild(tooltip);
+
+    document.body.appendChild(overlay);
+
+    // --- Zoom & Pan state ---
+    var zoom = 1, panX = 0, panY = 0;
+    var isDragging = false, dragStartX = 0, dragStartY = 0, dragPanX = 0, dragPanY = 0;
+
+    function fitToView() {
+        var areaW = mapArea.clientWidth, areaH = mapArea.clientHeight;
+        var scaleX = areaW / canvas.width, scaleY = areaH / canvas.height;
+        zoom = Math.min(scaleX, scaleY, 1);
+        panX = (areaW - canvas.width * zoom) / 2;
+        panY = (areaH - canvas.height * zoom) / 2;
+        applyTransform();
+    }
+
+    function applyTransform() {
+        mapInner.style.transform = 'translate(' + panX + 'px,' + panY + 'px) scale(' + zoom + ')';
+        zoomInfo.textContent = Math.round(zoom * 100) + '%';
+    }
+
+    function zoomTo(newZoom, cx, cy) {
+        if (!cx) cx = mapArea.clientWidth / 2;
+        if (!cy) cy = mapArea.clientHeight / 2;
+        var oldZoom = zoom;
+        zoom = Math.max(0.1, Math.min(10, newZoom));
+        panX = cx - (cx - panX) * (zoom / oldZoom);
+        panY = cy - (cy - panY) * (zoom / oldZoom);
+        applyTransform();
+    }
+
+    zoomInBtn.addEventListener('click', function() { zoomTo(zoom * 1.3); });
+    zoomOutBtn.addEventListener('click', function() { zoomTo(zoom / 1.3); });
+    zoomFitBtn.addEventListener('click', fitToView);
+
+    // Mouse wheel zoom
+    mapArea.addEventListener('wheel', function(e) {
+        e.preventDefault();
+        var rect = mapArea.getBoundingClientRect();
+        var cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+        var factor = e.deltaY < 0 ? 1.15 : 1 / 1.15;
+        zoomTo(zoom * factor, cx, cy);
+    }, { passive: false });
+
+    // Pan with mouse drag
+    mapArea.addEventListener('mousedown', function(e) {
+        if (e.button !== 0) return;
+        isDragging = true;
+        dragStartX = e.clientX; dragStartY = e.clientY;
+        dragPanX = panX; dragPanY = panY;
+        mapArea.classList.add('dragging');
+    });
+    window.addEventListener('mousemove', function handler(e) {
+        if (!isDragging) return;
+        panX = dragPanX + (e.clientX - dragStartX);
+        panY = dragPanY + (e.clientY - dragStartY);
+        applyTransform();
+    });
+    window.addEventListener('mouseup', function handler() {
+        isDragging = false;
+        mapArea.classList.remove('dragging');
+    });
+
+    // Tooltip on hover
+    svg.addEventListener('mousemove', function(e) {
+        var target = e.target;
+        if (!target.dataset || !target.dataset.species) {
+            tooltip.classList.remove('visible');
+            return;
+        }
+        var sp = target.dataset.species;
+        var spInfo = type === 'forracao' ? data.areas[sp] : data.species[sp];
+        var codes = type === 'forracao' ? sp.replace(/\([^)]*\)/g, '').split('+').map(function(c) { return c.trim(); }) : [sp];
+        var dbInfo = getSpeciesInfo(codes[0]);
+        var count = type === 'forracao' ? spInfo.paths.length : spInfo.positions.length;
+        var unitLabel = type === 'forracao' ? 'areas' : 'un.';
+
+        var html = '<div class="tt-code" style="color:' + spInfo.color + '">' + sp + '</div>';
+        var nameText = dbInfo.scientific || (type !== 'forracao' && spInfo.name ? spInfo.name : '');
+        if (nameText) html += '<div class="tt-name">' + nameText + '</div>';
+        if (dbInfo.common) html += '<div class="tt-common">' + dbInfo.common + '</div>';
+        html += '<div class="tt-count">' + count + ' ' + unitLabel + '</div>';
+        var meta = [];
+        if (dbInfo.origin) meta.push(dbInfo.origin);
+        if (dbInfo.sun) meta.push(dbInfo.sun);
+        if (meta.length > 0) html += '<div class="tt-meta">' + meta.join(' | ') + '</div>';
+        if (dbInfo.imageUrl) html += '<img class="tt-photo" src="' + dbInfo.imageUrl + '" alt="' + sp + '">';
+
+        tooltip.innerHTML = html;
+        tooltip.classList.add('visible');
+
+        // Position tooltip near cursor
+        var tx = e.clientX + 16, ty = e.clientY + 16;
+        if (tx + 290 > window.innerWidth) tx = e.clientX - 290;
+        if (ty + tooltip.offsetHeight > window.innerHeight) ty = e.clientY - tooltip.offsetHeight - 10;
+        tooltip.style.left = tx + 'px';
+        tooltip.style.top = ty + 'px';
+    });
+
+    svg.addEventListener('mouseleave', function() {
+        tooltip.classList.remove('visible');
+    });
+
+    // Close
+    closeBtn.addEventListener('click', function() {
+        document.body.removeChild(overlay);
+    });
+
+    // ESC to close
+    function escHandler(e) {
+        if (e.key === 'Escape') {
+            document.body.removeChild(overlay);
+            window.removeEventListener('keydown', escHandler);
+        }
+    }
+    window.addEventListener('keydown', escHandler);
+
+    // Initial fit
+    requestAnimationFrame(fitToView);
 }
 
 function resetApp() {
