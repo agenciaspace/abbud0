@@ -825,7 +825,7 @@ function exportPNG(type) {
         ctx.fillText(labelText + ' (' + entry.count + ' ' + entry.unit + ')', cx-36*s, lY+16);
     });
     var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
-    out.toBlob(function(b) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'mapa_' + suffix + '.png'; a.click(); }, 'image/png');
+    out.toBlob(function(b) { var url = URL.createObjectURL(b); window.open(url, '_blank'); }, 'image/png');
 }
 
 function exportPDF(type) {
@@ -860,8 +860,9 @@ function exportPDF(type) {
     });
     doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(160,160,160);
     doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', tw/2, doc.internal.pageSize.getHeight()-10, { align: 'center' });
-    var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
-    doc.save('mapa_' + suffix + '.pdf');
+    var pdfBlob = doc.output('blob');
+    var pdfUrl = URL.createObjectURL(pdfBlob);
+    window.open(pdfUrl, '_blank');
 }
 
 function exportAllPDF() {
@@ -916,7 +917,11 @@ function exportAllPDF() {
         doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', tw / 2, pageH - 10, { align: 'center' });
     }
 
-    if (doc) doc.save('mapa_vegetacao_completo.pdf');
+    if (doc) {
+        var pdfBlob = doc.output('blob');
+        var pdfUrl = URL.createObjectURL(pdfBlob);
+        window.open(pdfUrl, '_blank');
+    }
 }
 
 // --- Species Slides Presentation ---
@@ -1298,8 +1303,9 @@ async function generateSpeciesSlides(type) {
         doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', slideW / 2, slideH - 10, { align: 'center' });
     }
 
-    var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
-    doc.save('apresentacao_especies_' + suffix + '.pdf');
+    var pdfBlob = doc.output('blob');
+    var pdfUrl = URL.createObjectURL(pdfBlob);
+    window.open(pdfUrl, '_blank');
     statusText.textContent = '';
 }
 
@@ -1379,10 +1385,8 @@ async function generateInteractiveHTML() {
         // Build HTML string
         var html = buildInteractiveHTML(htmlTypes, total, totalItems);
         var blob = new Blob([html], { type: 'text/html' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'especies_interativo.html';
-        a.click();
+        var url = URL.createObjectURL(blob);
+        window.open(url, '_blank');
         statusText.textContent = '';
     } catch(err) {
         console.error(err);
