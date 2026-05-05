@@ -149,45 +149,6 @@
         }
         .hero .meta span::before { content: "\2713  "; color: var(--accent); margin-right: 4px; }
 
-        .hero-video-wrap {
-            margin: 60px auto 0;
-            max-width: 1100px;
-            position: relative;
-            border-radius: 18px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            box-shadow: 0 60px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(74,222,128,0.1);
-            background: var(--surface);
-        }
-        .hero-video-wrap::before {
-            content: "";
-            position: absolute; inset: -1px;
-            border-radius: 18px;
-            padding: 1px;
-            background: linear-gradient(135deg, rgba(74,222,128,0.4), transparent 50%, rgba(74,222,128,0.2));
-            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            pointer-events: none;
-        }
-        .hero-video {
-            width: 100%; display: block;
-            background: var(--bg);
-        }
-        .hero-video-controls {
-            position: absolute; bottom: 14px; right: 14px;
-            display: flex; gap: 8px;
-        }
-        .video-btn {
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text); width: 36px; height: 36px;
-            border-radius: 50%; cursor: pointer;
-            display: flex; align-items: center; justify-content: center;
-            font-size: 14px;
-        }
-        .video-btn:hover { background: rgba(0,0,0,0.8); }
-
         /* SECTIONS */
         section { padding: 120px 32px; position: relative; }
         .container { max-width: 1200px; margin: 0 auto; }
@@ -236,31 +197,6 @@
         .reveal-stagger.in > *:nth-child(4) { transition-delay: 0.35s; }
         .reveal-stagger.in > *:nth-child(5) { transition-delay: 0.45s; }
         .reveal-stagger.in > *:nth-child(6) { transition-delay: 0.55s; }
-
-        /* STATS */
-        .stats {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 0;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 18px;
-            overflow: hidden;
-        }
-        .stat {
-            padding: 36px 28px;
-            border-right: 1px solid var(--border);
-            text-align: center;
-        }
-        .stat:last-child { border-right: none; }
-        .stat .num {
-            font-size: 52px; font-weight: 700; letter-spacing: -2px;
-            color: var(--accent);
-            font-variant-numeric: tabular-nums;
-            display: inline-block;
-        }
-        .stat .num .suffix { font-size: 30px; }
-        .stat .lbl { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
 
         /* DEMO */
         .demo-wrap {
@@ -334,123 +270,6 @@
             color: var(--accent);
         }
         .demo-step .num { font-weight: 700; opacity: 0.6; }
-
-        /* BEFORE/AFTER SLIDER */
-        .ba-wrap {
-            position: relative;
-            border-radius: 16px;
-            overflow: hidden;
-            border: 1px solid var(--border);
-            background: var(--surface);
-            user-select: none;
-            cursor: ew-resize;
-            aspect-ratio: 16 / 9;
-        }
-        .ba-side { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
-        .ba-after-clip { clip-path: inset(0 0 0 var(--ba-pos, 50%)); }
-        .ba-before-clip { clip-path: inset(0 calc(100% - var(--ba-pos, 50%)) 0 0); }
-        .ba-handle {
-            position: absolute; top: 0; bottom: 0;
-            left: var(--ba-pos, 50%);
-            width: 2px;
-            background: var(--accent);
-            transform: translateX(-50%);
-            box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 30px var(--accent);
-            pointer-events: none;
-        }
-        .ba-handle::after {
-            content: "\2194";
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            width: 44px; height: 44px;
-            background: var(--accent);
-            color: #052e16;
-            border-radius: 50%;
-            display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 18px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-        }
-        .ba-label {
-            position: absolute; top: 16px;
-            font-family: var(--mono); font-size: 11px;
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-            color: var(--text); padding: 6px 12px;
-            border-radius: 6px;
-            letter-spacing: 1px; text-transform: uppercase;
-        }
-        .ba-label.left { left: 16px; }
-        .ba-label.right { right: 16px; color: var(--accent); }
-
-        /* FEATURES */
-        .features {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-        }
-        .feature {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 32px;
-            transition: border-color 0.2s, transform 0.2s, background 0.2s;
-            position: relative;
-            overflow: hidden;
-        }
-        .feature::before {
-            content: "";
-            position: absolute; inset: 0;
-            background: radial-gradient(ellipse 80% 50% at 0% 0%, var(--accent-dim), transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        .feature:hover { border-color: rgba(74,222,128,0.4); transform: translateY(-3px); }
-        .feature:hover::before { opacity: 1; }
-        .feature > * { position: relative; }
-        .feature .ic {
-            width: 44px; height: 44px;
-            border-radius: 10px;
-            background: var(--accent-dim);
-            display: flex; align-items: center; justify-content: center;
-            font-size: 20px; color: var(--accent);
-            margin-bottom: 18px;
-        }
-        .feature h4 { font-size: 17px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
-        .feature p { font-size: 14px; color: var(--text2); }
-
-        /* HOW IT WORKS - timeline */
-        .timeline {
-            position: relative;
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 24px;
-        }
-        .timeline::before {
-            content: "";
-            position: absolute;
-            top: 32px; left: 12%; right: 12%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent), var(--accent), transparent);
-            opacity: 0.3;
-        }
-        .step {
-            position: relative;
-            text-align: center;
-        }
-        .step .step-num {
-            position: relative;
-            width: 64px; height: 64px;
-            border-radius: 50%;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            margin: 0 auto 20px;
-            display: flex; align-items: center; justify-content: center;
-            font-family: var(--mono);
-            font-size: 18px; font-weight: 700;
-            color: var(--accent);
-            z-index: 1;
-        }
-        .step h4 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-        .step p { font-size: 13px; color: var(--text2); }
 
         /* GALLERY */
         .gallery-controls {
@@ -617,16 +436,6 @@
         .faq details[open] summary::after { transform: rotate(45deg); }
         .faq details p { padding: 0 26px 24px; font-size: 14px; color: var(--text2); }
 
-        /* CTA FINAL */
-        .cta-final {
-            background:
-                radial-gradient(ellipse 60% 80% at 50% 100%, var(--accent-dim), transparent 70%),
-                var(--surface);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
-            text-align: center;
-        }
-
         footer {
             padding: 36px 32px;
             border-top: 1px solid var(--border);
@@ -641,12 +450,7 @@
             .hero { padding: 100px 20px 60px; min-height: auto; }
             .nav { padding: 12px 20px; }
             .nav .links a:not(.btn) { display: none; }
-            .stats { grid-template-columns: 1fr 1fr; }
-            .stat:nth-child(2) { border-right: none; }
-            .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 1px solid var(--border); }
-            .timeline { grid-template-columns: 1fr; gap: 32px; }
-            .timeline::before { display: none; }
-            .features, .outputs { grid-template-columns: 1fr; }
+            .outputs { grid-template-columns: 1fr; }
             .lightbox-card { grid-template-columns: 1fr; }
             .demo-stage { height: 380px; }
         }
@@ -660,7 +464,6 @@
         </a>
         <div class="links">
             <a href="#demo">Demo</a>
-            <a href="#funciona">Como funciona</a>
             <a href="#especies">Especies</a>
             <a href="#entregaveis">Entregaveis</a>
             <a href="#faq">FAQ</a>
@@ -686,29 +489,7 @@
                 <span>Exporta HTML, PNG e PDF</span>
             </div>
         </div>
-
-        <div class="hero-video-wrap reveal">
-            <video class="hero-video" id="heroVideo" autoplay muted loop playsinline preload="metadata">
-                <source src="/promo.mp4" type="video/mp4">
-            </video>
-            <div class="hero-video-controls">
-                <button class="video-btn" id="muteBtn" title="Som">&#128263;</button>
-                <button class="video-btn" id="playBtn" title="Pausar">&#9208;</button>
-            </div>
-        </div>
     </header>
-
-    <!-- STATS -->
-    <section style="padding-top: 0;">
-        <div class="container reveal">
-            <div class="stats">
-                <div class="stat"><span class="num" data-count="326"><span class="val">0</span></span><div class="lbl">Especies catalogadas</div></div>
-                <div class="stat"><span class="num" data-count="3"><span class="val">0</span></span><div class="lbl">Tipos de vegetacao</div></div>
-                <div class="stat"><span class="num" data-count="60"><span class="val">0</span><span class="suffix">s</span></span><div class="lbl">Tempo de processamento</div></div>
-                <div class="stat"><span class="num" data-count="3"><span class="val">0</span><span class="suffix"> formatos</span></span><div class="lbl">HTML &middot; PNG &middot; PDF</div></div>
-            </div>
-        </div>
-    </section>
 
     <!-- INTERACTIVE DEMO -->
     <section id="demo">
@@ -735,151 +516,6 @@
                     <button class="demo-step" data-step="parse"><span class="num">02</span> Identificar</button>
                     <button class="demo-step" data-step="map"><span class="num">03</span> Mapear</button>
                     <button class="demo-step" data-step="export"><span class="num">04</span> Exportar</button>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- BEFORE / AFTER -->
-    <section id="comparacao" style="background: var(--bg2);">
-        <div class="container">
-            <div class="center reveal">
-                <span class="eyebrow">// antes &middot; depois</span>
-                <h2 class="section-title">Arraste para comparar</h2>
-                <p class="section-sub">A esquerda, um trecho da prancha tecnica original. A direita, o mesmo trecho ja processado pelo Mapa de Vegetacao.</p>
-            </div>
-            <div class="reveal">
-                <div class="ba-wrap" id="baWrap">
-                    <div class="ba-side ba-before-clip">
-                        <svg viewBox="0 0 1200 675" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
-                            <rect width="1200" height="675" fill="#fafafa"/>
-                            <g stroke="#999" stroke-width="0.5" fill="none">
-                                <pattern id="bg-grid" width="30" height="30" patternUnits="userSpaceOnUse">
-                                    <path d="M 30 0 L 0 0 0 30" />
-                                </pattern>
-                                <rect width="1200" height="675" fill="url(#bg-grid)" opacity="0.4"/>
-                            </g>
-                            <g stroke="#222" stroke-width="2" fill="none">
-                                <path d="M 100 100 L 1100 100 L 1100 575 L 100 575 Z"/>
-                                <path d="M 100 250 L 1100 250" stroke-dasharray="4 4"/>
-                                <path d="M 600 100 L 600 575" stroke-dasharray="4 4"/>
-                            </g>
-                            <g font-family="monospace" font-size="9" fill="#666">
-                                <text x="120" y="92">EIXO A</text>
-                                <text x="620" y="92">EIXO B</text>
-                                <text x="120" y="246">N+0.00</text>
-                                <text x="120" y="595">CALCADA</text>
-                            </g>
-                            <g font-family="monospace" font-size="8" fill="#222">
-                                <text x="200" y="180">QUA</text><text x="280" y="220">QUA</text><text x="350" y="170">CER</text>
-                                <text x="450" y="200">IPE</text><text x="540" y="240">IPE</text><text x="640" y="180">PAU</text>
-                                <text x="720" y="220">PAU</text><text x="820" y="170">JAB</text><text x="900" y="220">FIC</text>
-                                <text x="970" y="180">PAL</text><text x="200" y="380">PAL</text><text x="320" y="420">QUA</text>
-                                <text x="450" y="380">CER</text><text x="580" y="420">PAU</text><text x="700" y="380">JAB</text>
-                                <text x="820" y="420">FIC</text><text x="940" y="380">IPE</text>
-                                <text x="200" y="500">arb</text><text x="320" y="510">arb</text><text x="450" y="500">arb</text>
-                                <text x="580" y="510">arb</text><text x="700" y="500">arb</text><text x="820" y="510">arb</text>
-                            </g>
-                            <g font-family="monospace" font-size="7" fill="#888">
-                                <text x="120" y="640">PROJETO PAISAGISMO &middot; PRANCHA 04 &middot; ESC 1:200 &middot; R00 &middot; 03/2026</text>
-                            </g>
-                        </svg>
-                    </div>
-                    <div class="ba-side ba-after-clip">
-                        <svg viewBox="0 0 1200 675" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="background: #0d0d0d;">
-                            <pattern id="bg-grid2" width="30" height="30" patternUnits="userSpaceOnUse">
-                                <path d="M 30 0 L 0 0 0 30" stroke="#1f1f1f" stroke-width="0.5" fill="none"/>
-                            </pattern>
-                            <rect width="1200" height="675" fill="url(#bg-grid2)"/>
-                            <g stroke="#333" stroke-width="1" fill="none">
-                                <path d="M 100 100 L 1100 100 L 1100 575 L 100 575 Z"/>
-                            </g>
-                            <!-- Processed dots -->
-                            <g id="afterDots"></g>
-                            <g font-family="JetBrains Mono, monospace" font-size="11" fill="#4ADE80">
-                                <text x="120" y="640">// MAPA DE VEGETACAO &middot; 18 ESPECIES &middot; 156 ITENS DETECTADOS</text>
-                            </g>
-                        </svg>
-                    </div>
-                    <div class="ba-handle"></div>
-                    <div class="ba-label left">Prancha original</div>
-                    <div class="ba-label right">Mapa gerado</div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- HOW IT WORKS -->
-    <section id="funciona">
-        <div class="container">
-            <div class="center reveal">
-                <span class="eyebrow">// como funciona</span>
-                <h2 class="section-title">Quatro passos. Sem manual.</h2>
-                <p class="section-sub">Pensado para arquitetos paisagistas, agronomos e equipes de obra.</p>
-            </div>
-            <div class="timeline reveal-stagger">
-                <div class="step">
-                    <div class="step-num">01</div>
-                    <h4>Envie o PDF</h4>
-                    <p>Arraste o arquivo do projeto direto na area de upload do navegador.</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">02</div>
-                    <h4>Selecione tipos</h4>
-                    <p>Arvores, arbustos, forracoes &mdash; um, dois ou os tres.</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">03</div>
-                    <h4>Processamento</h4>
-                    <p>Identificacao, contagem e posicionamento automatico no mapa.</p>
-                </div>
-                <div class="step">
-                    <div class="step-num">04</div>
-                    <h4>Exporte</h4>
-                    <p>HTML interativo, PNG do mapa ou apresentacao executiva em PDF.</p>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- FEATURES -->
-    <section style="background: var(--bg2);">
-        <div class="container">
-            <div class="center reveal">
-                <span class="eyebrow">// recursos</span>
-                <h2 class="section-title">Tudo o que esta incluso</h2>
-                <p class="section-sub">Nenhum passo extra. Tudo o que voce ve abaixo acontece em uma unica execucao.</p>
-            </div>
-            <div class="features reveal-stagger">
-                <div class="feature">
-                    <div class="ic">&#128205;</div>
-                    <h4>Posicionamento automatico</h4>
-                    <p>Cada planta marcada no PDF original e identificada e posicionada com precisao no mapa de saida.</p>
-                </div>
-                <div class="feature">
-                    <div class="ic">&#127912;</div>
-                    <h4>Cores por especie</h4>
-                    <p>Paleta consistente que diferencia cada especie no mapa, com legenda alinhada automaticamente.</p>
-                </div>
-                <div class="feature">
-                    <div class="ic">&#128290;</div>
-                    <h4>Contagem por tipo</h4>
-                    <p>Total por especie e total geral por tipo (arvores, arbustos, forracoes), tudo calculado.</p>
-                </div>
-                <div class="feature">
-                    <div class="ic">&#128247;</div>
-                    <h4>Tooltips com fotos</h4>
-                    <p>No HTML interativo, passar o mouse sobre cada planta exibe foto, nome popular e cientifico.</p>
-                </div>
-                <div class="feature">
-                    <div class="ic">&#128218;</div>
-                    <h4>Apresentacao executiva</h4>
-                    <p>PDF com capa, slides individuais por especie, mapa destacado e dados consolidados.</p>
-                </div>
-                <div class="feature">
-                    <div class="ic">&#9889;</div>
-                    <h4>Sem instalacao</h4>
-                    <p>Tudo no navegador. Processamento online com download imediato em PNG ou PDF.</p>
                 </div>
             </div>
         </div>
@@ -974,15 +610,6 @@
         </div>
     </section>
 
-    <!-- CTA FINAL -->
-    <section class="cta-final">
-        <div class="container-narrow reveal">
-            <h2 class="section-title">Pronto para gerar seu primeiro mapa?</h2>
-            <p class="section-sub center" style="margin-bottom: 32px;">Abra o app, envie o PDF do projeto e receba os entregaveis em minutos.</p>
-            <a href="/app" class="btn btn-primary btn-lg">Abrir o App &nbsp;&rarr;</a>
-        </div>
-    </section>
-
     <footer>
         <div>// Mapa de Vegetacao &middot; Paisagismo Tecnico</div>
         <div><a href="/app">Abrir App</a> &nbsp;&middot;&nbsp; <a href="#top">Topo</a></div>
@@ -1012,47 +639,11 @@
             nav.classList.toggle('scrolled', window.scrollY > 20);
         });
 
-        // ---------- VIDEO CONTROLS ----------
-        const video = document.getElementById('heroVideo');
-        const muteBtn = document.getElementById('muteBtn');
-        const playBtn = document.getElementById('playBtn');
-        muteBtn.addEventListener('click', () => {
-            video.muted = !video.muted;
-            muteBtn.innerHTML = video.muted ? '&#128263;' : '&#128266;';
-        });
-        playBtn.addEventListener('click', () => {
-            if (video.paused) { video.play(); playBtn.innerHTML = '&#9208;'; }
-            else { video.pause(); playBtn.innerHTML = '&#9654;'; }
-        });
-
         // ---------- REVEAL ON SCROLL ----------
         const io = new IntersectionObserver((entries) => {
             entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
         }, { threshold: 0.12 });
         document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => io.observe(el));
-
-        // ---------- ANIMATED COUNTERS ----------
-        const counterIO = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                if (!e.isIntersecting) return;
-                const el = e.target;
-                const target = parseInt(el.dataset.count, 10);
-                const dur = 1400;
-                const start = performance.now();
-                const valEl = el.querySelector('.val') || el;
-                const tick = (now) => {
-                    const t = Math.min(1, (now - start) / dur);
-                    const eased = 1 - Math.pow(1 - t, 3);
-                    const v = Math.floor(target * eased);
-                    valEl.textContent = v;
-                    if (t < 1) requestAnimationFrame(tick);
-                    else valEl.textContent = target;
-                };
-                requestAnimationFrame(tick);
-                counterIO.unobserve(el);
-            });
-        }, { threshold: 0.5 });
-        document.querySelectorAll('[data-count]').forEach(el => counterIO.observe(el));
 
         // ---------- DEMO ----------
         const demoStage = document.getElementById('demoStage');
@@ -1214,49 +805,6 @@
         }, { threshold: 0.4 });
         demoIO.observe(demoSection);
         setStep('upload');
-
-        // ---------- BEFORE / AFTER SLIDER ----------
-        const baWrap = document.getElementById('baWrap');
-        const afterDots = baWrap.querySelector('#afterDots');
-        // Build map dots for the after side
-        const baSeeded = Array.from({length: 156}, (_, i) => ({
-            x: 110 + seedRand(i*11) * 980,
-            y: 110 + seedRand(i*17) * 440,
-            r: 5 + seedRand(i*5) * 3,
-            color: PALETTE[i % PALETTE.length]
-        }));
-        afterDots.innerHTML = baSeeded.map(d => `<circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}" fill-opacity="0.85"/>`).join('');
-
-        const setBaPos = (clientX) => {
-            const rect = baWrap.getBoundingClientRect();
-            const pct = Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100));
-            baWrap.style.setProperty('--ba-pos', pct + '%');
-        };
-        let baDragging = false;
-        baWrap.addEventListener('mousedown', (e) => { baDragging = true; setBaPos(e.clientX); });
-        window.addEventListener('mousemove', (e) => { if (baDragging) setBaPos(e.clientX); });
-        window.addEventListener('mouseup', () => { baDragging = false; });
-        baWrap.addEventListener('touchstart', (e) => { baDragging = true; setBaPos(e.touches[0].clientX); }, { passive: true });
-        baWrap.addEventListener('touchmove', (e) => { if (baDragging) setBaPos(e.touches[0].clientX); }, { passive: true });
-        window.addEventListener('touchend', () => { baDragging = false; });
-        // auto-tease on scroll into view
-        const baIO = new IntersectionObserver((entries) => {
-            entries.forEach(e => {
-                if (!e.isIntersecting) return;
-                const start = performance.now();
-                const dur = 1800;
-                const animate = (now) => {
-                    const t = Math.min(1, (now - start) / dur);
-                    const eased = 0.5 - Math.cos(t * Math.PI) * 0.5;
-                    baWrap.style.setProperty('--ba-pos', (50 + Math.sin(eased * Math.PI * 2) * 20) + '%');
-                    if (t < 1) requestAnimationFrame(animate);
-                    else baWrap.style.setProperty('--ba-pos', '50%');
-                };
-                requestAnimationFrame(animate);
-                baIO.unobserve(e.target);
-            });
-        }, { threshold: 0.4 });
-        baIO.observe(baWrap);
 
         // ---------- SPECIES GALLERY ----------
         const galleryGrid = document.getElementById('galleryGrid');
