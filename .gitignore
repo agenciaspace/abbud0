@@ -22,3 +22,8 @@ __pycache__/
 .claude/
 .vercel
 .wrangler/
+
+# Remotion
+remotion/node_modules/
+remotion/out/
+remotion/.remotion/
