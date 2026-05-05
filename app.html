@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gerador de Mapa de Vegetacao</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0f0f0f;
+            --surface: #1a1a1a;
+            --surface2: #242424;
+            --border: #333;
+            --text: #e0e0e0;
+            --text2: #888;
+            --accent: #4CAF50;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
+            min-height: 100vh;
+        }
+
+        .header {
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            padding: 20px 32px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 { font-size: 16px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
+
+        .header .tag {
+            font-size: 10px; color: var(--text2); background: var(--surface2);
+            padding: 4px 10px; border-radius: 4px; letter-spacing: 1px;
+        }
+
+        .container { max-width: 1400px; margin: 0 auto; padding: 32px; }
+
+        .upload-zone {
+            border: 2px dashed var(--border); border-radius: 12px;
+            padding: 60px 40px; text-align: center; cursor: pointer;
+            transition: all 0.2s; background: var(--surface);
+        }
+        .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); background: rgba(76,175,80,0.05); }
+        .upload-zone .icon { font-size: 48px; margin-bottom: 16px; opacity: 0.4; }
+        .upload-zone p { color: var(--text2); font-size: 14px; margin-top: 8px; }
+        .upload-zone .filename { color: var(--accent); font-weight: 600; font-size: 14px; margin-top: 12px; }
+        .upload-zone input { display: none; }
+
+        .instructions {
+            background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+            padding: 24px 32px; margin-bottom: 24px;
+        }
+        .instructions h2 { font-size: 13px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--accent); margin-bottom: 10px; }
+        .instructions p { font-size: 14px; color: var(--text2); line-height: 1.7; margin-bottom: 0; }
+
+        .type-desc { font-size: 12px; color: var(--text2); margin-top: 4px; line-height: 1.4; }
+
+        .type-selector {
+            display: flex; gap: 12px; margin-top: 24px; justify-content: center;
+        }
+        .type-option {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--surface); border: 2px solid var(--border);
+            padding: 12px 24px; border-radius: 10px; cursor: pointer;
+            transition: all 0.15s; font-size: 14px;
+        }
+        .type-option:hover { border-color: var(--text2); }
+        .type-option.selected { border-color: var(--accent); background: rgba(76,175,80,0.08); }
+        .type-option input { display: none; }
+        .type-icon { font-size: 20px; }
+
+        .btn {
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 12px 28px; border: none; border-radius: 8px;
+            font-size: 14px; font-weight: 600; cursor: pointer;
+            transition: all 0.15s; text-transform: uppercase; letter-spacing: 1px;
+        }
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
+        .btn-primary:disabled { opacity: 0.3; cursor: not-allowed; transform: none; }
+        .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
+        .btn-outline:hover { border-color: var(--text2); background: var(--surface2); }
+
+        .actions { display: flex; gap: 12px; margin-top: 24px; justify-content: center; }
+
+        .species-config { display: flex; gap: 24px; margin-top: 24px; justify-content: center; flex-wrap: wrap; }
+        .species-chip {
+            display: flex; align-items: center; gap: 8px;
+            background: var(--surface); border: 1px solid var(--border);
+            padding: 8px 16px; border-radius: 20px; font-size: 13px;
+        }
+        .species-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+        .species-chip .code { font-weight: 700; }
+        .species-chip .name { color: var(--text2); font-style: italic; }
+
+        .progress-bar {
+            width: 100%; height: 3px; background: var(--surface2);
+            border-radius: 2px; margin-top: 24px; overflow: hidden; display: none;
+        }
+        .progress-bar.active { display: block; }
+        .progress-bar .fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.3s; width: 0%; }
+
+        .status { text-align: center; font-size: 13px; color: var(--text2); margin-top: 12px; min-height: 20px; }
+
+        .preview-section { display: none; margin-top: 32px; }
+        .preview-section.active { display: block; }
+
+        .preview-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .preview-header {
+            padding: 16px 24px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .preview-header h2 { font-size: 14px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+        .preview-stats { display: flex; gap: 20px; }
+        .preview-stats .stat { font-size: 12px; color: var(--text2); }
+        .preview-stats .stat strong { color: var(--text); font-size: 18px; display: block; }
+
+        .map-wrap { position: relative; background: white; }
+        .map-wrap canvas { display: block; width: 100%; height: auto; }
+        .map-wrap svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+
+        .legend-bar {
+            display: flex; justify-content: center; gap: 40px;
+            padding: 16px 24px; border-top: 1px solid var(--border); flex-wrap: wrap;
+        }
+        .legend-item { display: flex; align-items: center; gap: 10px; }
+        .legend-circle { width: 18px; height: 18px; border-radius: 50%; }
+        .legend-square { width: 18px; height: 18px; border-radius: 3px; }
+        .legend-label .lcode { font-weight: 700; font-size: 13px; }
+        .legend-label .lname { font-style: italic; font-size: 12px; color: var(--text2); }
+        .legend-label .lcount { font-size: 11px; color: var(--text2); }
+
+        .download-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; padding: 16px 24px; border-top: 1px solid var(--border); }
+        .download-card {
+            background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+            padding: 20px; text-align: center; cursor: pointer; transition: all 0.15s;
+        }
+        .download-card:hover { border-color: var(--accent); background: var(--surface); }
+        .download-card .format { font-size: 22px; font-weight: 700; letter-spacing: 2px; margin-bottom: 6px; }
+        .download-card .desc { font-size: 11px; color: var(--text2); }
+
+        .output-hero {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+            padding: 20px 24px; border-top: 2px solid var(--accent);
+        }
+        .output-card {
+            background: linear-gradient(135deg, var(--surface2), var(--surface));
+            border: 2px solid var(--border); border-radius: 12px;
+            padding: 24px; cursor: pointer; transition: all 0.2s; text-align: center;
+        }
+        .output-card:hover { border-color: var(--accent); transform: translateY(-2px);
+            box-shadow: 0 8px 24px rgba(76,175,80,0.15); }
+        .output-card .out-icon { font-size: 32px; margin-bottom: 8px; }
+        .output-card .out-title { font-size: 16px; font-weight: 700; letter-spacing: 1px;
+            text-transform: uppercase; margin-bottom: 6px; }
+        .output-card .out-title.html-title { color: #2196F3; }
+        .output-card .out-title.pdf-title { color: var(--accent); }
+        .output-card .out-desc { font-size: 12px; color: var(--text2); line-height: 1.5; }
+        .output-card .out-badge { display: inline-block; margin-top: 10px; padding: 4px 14px;
+            border-radius: 20px; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+        .output-card .badge-html { background: rgba(33,150,243,0.15); color: #2196F3; }
+        .output-card .badge-pdf { background: rgba(76,175,80,0.15); color: var(--accent); }
+
+        @media (max-width: 768px) {
+            .output-hero { grid-template-columns: 1fr; }
+        }
+
+        .new-upload { text-align: center; margin-top: 20px; }
+
+        .tabs-bar {
+            display: flex; border-bottom: 1px solid var(--border);
+            background: var(--surface2);
+        }
+        .tab-btn {
+            padding: 12px 24px; font-size: 13px; font-weight: 600;
+            cursor: pointer; border: none; background: transparent;
+            color: var(--text2); letter-spacing: 1px; text-transform: uppercase;
+            border-bottom: 2px solid transparent; transition: all 0.15s;
+        }
+        .tab-btn:hover { color: var(--text); }
+        .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--surface); }
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
+
+        /* Presentation slides modal */
+        .slides-modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); z-index: 1000;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .slides-modal {
+            background: var(--surface); border: 1px solid var(--border);
+            border-radius: 16px; width: 95vw; max-width: 1200px;
+            max-height: 90vh; display: flex; flex-direction: column; overflow: hidden;
+        }
+        .slides-modal-header {
+            padding: 16px 24px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .slides-modal-header h2 { font-size: 14px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; }
+        .slides-modal-body {
+            flex: 1; overflow-y: auto; padding: 24px;
+            display: flex; flex-direction: column; align-items: center; gap: 32px;
+        }
+        .slide-preview {
+            background: white; border-radius: 8px; box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+            width: 100%; aspect-ratio: 16/9; position: relative; overflow: hidden;
+        }
+        .slide-preview canvas { width: 100%; height: 100%; display: block; }
+        .slide-number {
+            position: absolute; top: 8px; right: 12px;
+            background: rgba(0,0,0,0.5); color: white;
+            font-size: 11px; padding: 3px 10px; border-radius: 10px;
+        }
+        .slides-modal-footer {
+            padding: 16px 24px; border-top: 1px solid var(--border);
+            display: flex; justify-content: flex-end; gap: 12px;
+        }
+
+        @media (max-width: 768px) {
+            .container { padding: 16px; }
+            .upload-zone { padding: 40px 20px; }
+            .type-selector { flex-direction: column; align-items: center; }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Mapa de Vegetacao</h1>
+        <span class="tag">Paisagismo Tecnico</span>
+    </div>
+    <div class="container">
+        <div id="uploadSection">
+            <div class="instructions">
+                <h2>Como funciona</h2>
+                <p>Envie o PDF do projeto de paisagismo. O sistema identifica e posiciona automaticamente cada planta no mapa, gerando uma visualizacao interativa com legenda e contagem por especie. Ao final, voce pode baixar o resultado em PNG ou PDF para uso em apresentacoes e documentacao tecnica.</p>
+            </div>
+            <div class="upload-zone" id="dropZone">
+                <div class="icon">&#128196;</div>
+                <div><strong>Arraste o PDF de paisagismo aqui</strong></div>
+                <p>ou clique para selecionar o arquivo</p>
+                <div class="filename" id="fileName"></div>
+                <input type="file" id="fileInput" accept=".pdf">
+            </div>
+            <p style="text-align:center;font-size:13px;color:var(--text2);margin-top:20px;margin-bottom:8px;">Selecione o que deseja visualizar — pode escolher um ou mais tipos:</p>
+            <div class="type-selector" id="typeSelector">
+                <label class="type-option selected" data-type="arvore">
+                    <input type="checkbox" name="plantType" value="arvore" checked>
+                    <span class="type-icon">&#127794;</span>
+                    <div>
+                        <div>Arvores</div>
+                        <div class="type-desc">Circulos coloridos marcam cada arvore no mapa, com contagem por especie na legenda</div>
+                    </div>
+                </label>
+                <label class="type-option" data-type="arbusto">
+                    <input type="checkbox" name="plantType" value="arbusto">
+                    <span class="type-icon">&#127807;</span>
+                    <div>
+                        <div>Arbustos</div>
+                        <div class="type-desc">Circulos tracejados indicam cada arbusto, agrupados por especie com total por tipo</div>
+                    </div>
+                </label>
+                <label class="type-option" data-type="forracao">
+                    <input type="checkbox" name="plantType" value="forracao">
+                    <span class="type-icon">&#127811;</span>
+                    <div>
+                        <div>Forracoes</div>
+                        <div class="type-desc">Areas coloridas preenchem as regioes de cada forracao conforme o plano original</div>
+                    </div>
+                </label>
+            </div>
+            <div class="species-config" id="speciesConfig"></div>
+            <div class="actions">
+                <button class="btn btn-primary" id="processBtn" disabled>Processar PDF</button>
+            </div>
+            <p style="text-align:center;font-size:12px;color:var(--text2);margin-top:12px;">Apos o processamento, o mapa sera exibido com a vegetacao marcada e opcoes de download em PNG e PDF.</p>
+            <div class="progress-bar" id="progressBar"><div class="fill" id="progressFill"></div></div>
+            <div class="status" id="statusText"></div>
+        </div>
+
+        <div class="preview-section" id="previewSection">
+            <div class="preview-card">
+                <div class="output-hero">
+                    <div class="output-card" onclick="generateInteractiveHTML()">
+                        <div class="out-icon">&#127760;</div>
+                        <div class="out-title html-title">HTML Interativo</div>
+                        <div class="out-desc">Mapa com especies posicionadas, tooltips com foto ao passar o mouse, legenda por tipo</div>
+                        <div class="out-badge badge-html">Abrir no navegador</div>
+                    </div>
+                    <div class="output-card" onclick="generateSlidesPDF()">
+                        <div class="out-icon">&#128218;</div>
+                        <div class="out-title pdf-title">Apresentacao PDF</div>
+                        <div class="out-desc">Capa executiva, slides por especie com fotos, mapa destacado e dados consolidados</div>
+                        <div class="out-badge badge-pdf">Baixar PDF</div>
+                    </div>
+                </div>
+                <div class="tabs-bar" id="tabsBar"></div>
+                <div id="tabPanels"></div>
+            </div>
+            <div class="new-upload" style="display:flex;gap:12px;justify-content:center;align-items:center;">
+                <button class="btn btn-primary" id="exportAllBtn" onclick="exportAllPDF()" style="display:none;">Exportar PDF Completo</button>
+                <button class="btn btn-outline" onclick="resetApp()">Processar outro PDF</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+const COLOR_PALETTE = [
+    '#E91E63', '#4CAF50', '#2196F3', '#FF9800', '#9C27B0',
+    '#00BCD4', '#F44336', '#8BC34A', '#3F51B5', '#FFEB3B',
+    '#795548', '#607D8B', '#FF5722', '#009688', '#673AB7',
+    '#CDDC39', '#03A9F4', '#E040FB', '#76FF03', '#FF6D00',
+];
+const CIRCLE_OPACITY = 0.75;
+
+const TYPE_CONFIG = {
+    arvore: {
+        label: 'Arvores', labelFull: 'Implantacao de Arvores',
+        unit: 'arvores', radiusRatio: 0.0134,
+    },
+    arbusto: {
+        label: 'Arbustos', labelFull: 'Implantacao de Arbustos',
+        unit: 'arbustos', radiusRatio: 0.006,
+    },
+    forracao: {
+        label: 'Forracoes', labelFull: 'Implantacao de Forracoes',
+        unit: 'areas',
+    },
+};
+
+let pdfFile = null, results = {}, activeTab = null;
+let pageW = 0, pageH = 0;
+let speciesDB = {}; // Consolidated species database from /api/species
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+const $ = id => document.getElementById(id);
+const dropZone = $('dropZone'), fileInput = $('fileInput'), fileNameEl = $('fileName');
+const processBtn = $('processBtn'), progressBar = $('progressBar'), progressFill = $('progressFill');
+const statusText = $('statusText'), uploadSection = $('uploadSection');
+const previewSection = $('previewSection');
+const speciesConfig = $('speciesConfig');
+// Type selector — toggle visual .selected class based on checkbox state
+document.querySelectorAll('.type-option').forEach(opt => {
+    opt.addEventListener('click', () => {
+        const cb = opt.querySelector('input[type="checkbox"]');
+        opt.classList.toggle('selected', cb.checked);
+    });
+});
+
+function getSelectedTypes() {
+    return Array.from(document.querySelectorAll('.type-option input:checked'))
+        .map(cb => cb.value);
+}
+
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => { e.preventDefault(); dropZone.classList.remove('dragover'); if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]); });
+fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+processBtn.addEventListener('click', processPDF);
+
+function handleFile(f) {
+    if (f.type !== 'application/pdf') { statusText.textContent = 'Selecione um arquivo PDF.'; return; }
+    pdfFile = f; fileNameEl.textContent = f.name; processBtn.disabled = false; statusText.textContent = '';
+}
+
+function setProgress(p) { progressBar.classList.add('active'); progressFill.style.width = p + '%'; }
+
+function createChip(color, label, count, isSquare) {
+    const chip = document.createElement('div');
+    chip.className = 'species-chip';
+    const dot = document.createElement('span');
+    dot.className = 'species-dot';
+    dot.style.background = color;
+    if (isSquare) dot.style.borderRadius = '3px';
+    const codeSpan = document.createElement('span');
+    codeSpan.className = 'code';
+    codeSpan.textContent = label;
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'name';
+    nameSpan.textContent = '(' + count + ')';
+    chip.appendChild(dot);
+    chip.appendChild(codeSpan);
+    chip.appendChild(nameSpan);
+    return chip;
+}
+
+function createLegendItem(color, code, name, count, unit, isSquare) {
+    const el = document.createElement('div');
+    el.className = 'legend-item';
+    const symbol = document.createElement('span');
+    symbol.className = isSquare ? 'legend-square' : 'legend-circle';
+    symbol.style.background = color;
+    const labelDiv = document.createElement('div');
+    labelDiv.className = 'legend-label';
+    const codeSpan = document.createElement('span');
+    codeSpan.className = 'lcode';
+    codeSpan.textContent = code;
+    labelDiv.appendChild(codeSpan);
+    if (name) {
+        const nameSpan = document.createElement('span');
+        nameSpan.className = 'lname';
+        nameSpan.textContent = ' ' + name;
+        labelDiv.appendChild(nameSpan);
+    }
+    const countSpan = document.createElement('span');
+    countSpan.className = 'lcount';
+    countSpan.textContent = ' (' + count + ' ' + unit + ')';
+    labelDiv.appendChild(countSpan);
+    el.appendChild(symbol);
+    el.appendChild(labelDiv);
+    return el;
+}
+
+function hexToRgb(h) { h = h.replace('#',''); return { r: parseInt(h.substring(0,2),16), g: parseInt(h.substring(2,4),16), b: parseInt(h.substring(4,6),16) }; }
+
+async function processPDF() {
+    const selectedTypes = getSelectedTypes();
+    if (!pdfFile || selectedTypes.length === 0) {
+        statusText.textContent = 'Selecione ao menos um tipo e um arquivo PDF.';
+        return;
+    }
+    processBtn.disabled = true;
+    setProgress(10); statusText.textContent = 'Enviando PDF para processamento...';
+
+    try {
+        // Parallel API calls for all selected types
+        const promises = selectedTypes.map(type => {
+            const formData = new FormData();
+            formData.append('file', pdfFile);
+            formData.append('type', type);
+            return fetch('/api/extract', { method: 'POST', body: formData })
+                .then(r => r.ok ? r.json() : r.json().then(e => { throw new Error(e.error); }))
+                .then(data => ({ type, data }));
+        });
+
+        setProgress(20);
+        const apiResults = await Promise.all(promises);
+
+        // Load species database in parallel (non-blocking)
+        try {
+            const spResp = await fetch('/api/species');
+            if (spResp.ok) {
+                const spData = await spResp.json();
+                speciesDB = spData.species || {};
+            }
+        } catch(e) { console.warn('Species DB not available:', e); }
+
+        // Use pageW/pageH from first result
+        if (apiResults.length > 0) {
+            pageW = apiResults[0].data.pageWidth;
+            pageH = apiResults[0].data.pageHeight;
+        }
+
+        setProgress(50); statusText.textContent = 'Dados extraidos. Renderizando planta base...';
+
+        // Render PDF background once (grayscale canvas)
+        const buf = await pdfFile.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+        const page = await pdf.getPage(1);
+        const vp = page.getViewport({ scale: 1.0 });
+
+        const bgCanvas = document.createElement('canvas');
+        bgCanvas.width = vp.width;
+        bgCanvas.height = vp.height;
+        const bgCtx = bgCanvas.getContext('2d');
+        await page.render({ canvasContext: bgCtx, viewport: vp }).promise;
+
+        // Grayscale + 20% opacity
+        const imgData = bgCtx.getImageData(0, 0, bgCanvas.width, bgCanvas.height);
+        const d = imgData.data;
+        for (let i = 0; i < d.length; i += 4) {
+            const g = 0.299 * d[i] + 0.587 * d[i+1] + 0.114 * d[i+2];
+            d[i] = d[i+1] = d[i+2] = Math.round(255 * 0.8 + g * 0.2);
+        }
+        bgCtx.putImageData(imgData, 0, 0);
+
+        setProgress(80); statusText.textContent = 'Desenhando vegetacao...';
+
+        results = {};
+        for (const { type, data } of apiResults) {
+            results[type] = { data, bgCanvas };
+        }
+
+        renderTabs(selectedTypes);
+        showTab(selectedTypes[0]);
+
+        setProgress(100); statusText.textContent = '';
+        setTimeout(function() {
+            uploadSection.style.display = 'none';
+            previewSection.classList.add('active');
+            progressBar.classList.remove('active');
+            var exportAllBtn = $('exportAllBtn');
+            if (exportAllBtn) exportAllBtn.style.display = selectedTypes.length > 1 ? '' : 'none';
+        }, 300);
+    } catch (err) {
+        console.error(err);
+        statusText.textContent = 'Erro: ' + err.message;
+        processBtn.disabled = false; setProgress(0); progressBar.classList.remove('active');
+    }
+}
+
+function renderTabs(types) {
+    const tabsBar = $('tabsBar');
+    const tabPanels = $('tabPanels');
+
+    while (tabsBar.firstChild) tabsBar.removeChild(tabsBar.firstChild);
+    while (tabPanels.firstChild) tabPanels.removeChild(tabPanels.firstChild);
+
+    for (const type of types) {
+        const config = TYPE_CONFIG[type];
+
+        // Tab button
+        const btn = document.createElement('button');
+        btn.className = 'tab-btn';
+        btn.textContent = config.label;
+        btn.setAttribute('data-type', type);
+        btn.addEventListener('click', () => showTab(type));
+        tabsBar.appendChild(btn);
+
+        // Tab panel
+        const panel = document.createElement('div');
+        panel.className = 'tab-panel';
+        panel.id = 'panel-' + type;
+
+        // Preview header
+        const header = document.createElement('div');
+        header.className = 'preview-header';
+        const h2 = document.createElement('h2');
+        h2.textContent = config.labelFull;
+        header.appendChild(h2);
+        const statsDiv = buildStats(type);
+        header.appendChild(statsDiv);
+        panel.appendChild(header);
+
+        // Map wrap
+        const mapWrap = document.createElement('div');
+        mapWrap.className = 'map-wrap';
+        const canvas = document.createElement('canvas');
+        canvas.id = 'mapCanvas-' + type;
+        const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.id = 'mapSvg-' + type;
+        svg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+        mapWrap.appendChild(canvas);
+        mapWrap.appendChild(svg);
+        panel.appendChild(mapWrap);
+
+        // Legend bar
+        const legendEl = document.createElement('div');
+        legendEl.className = 'legend-bar';
+        legendEl.id = 'legendBar-' + type;
+        panel.appendChild(legendEl);
+
+        // Download grid
+        const dlGrid = document.createElement('div');
+        dlGrid.className = 'download-grid';
+
+        const pngCard = document.createElement('div');
+        pngCard.className = 'download-card';
+        pngCard.setAttribute('onclick', 'exportPNG("' + type + '")');
+        const pngFormat = document.createElement('div');
+        pngFormat.className = 'format';
+        pngFormat.textContent = 'PNG';
+        const pngDesc = document.createElement('div');
+        pngDesc.className = 'desc';
+        pngDesc.textContent = 'Imagem em alta resolucao';
+        pngCard.appendChild(pngFormat);
+        pngCard.appendChild(pngDesc);
+        dlGrid.appendChild(pngCard);
+
+        const pdfCard = document.createElement('div');
+        pdfCard.className = 'download-card';
+        pdfCard.setAttribute('onclick', 'exportPDF("' + type + '")');
+        const pdfFormat = document.createElement('div');
+        pdfFormat.className = 'format';
+        pdfFormat.textContent = 'PDF';
+        const pdfDesc = document.createElement('div');
+        pdfDesc.className = 'desc';
+        pdfDesc.textContent = 'Documento para impressao';
+        pdfCard.appendChild(pdfFormat);
+        pdfCard.appendChild(pdfDesc);
+        dlGrid.appendChild(pdfCard);
+
+        var slidesCard = document.createElement('div');
+        slidesCard.className = 'download-card';
+        slidesCard.setAttribute('onclick', 'generateSpeciesSlides("' + type + '")');
+        var slidesFormat = document.createElement('div');
+        slidesFormat.className = 'format';
+        slidesFormat.textContent = 'SLIDES';
+        var slidesDesc = document.createElement('div');
+        slidesDesc.className = 'desc';
+        slidesDesc.textContent = 'Apresentacao por especie (max 5/slide)';
+        slidesCard.appendChild(slidesFormat);
+        slidesCard.appendChild(slidesDesc);
+        dlGrid.appendChild(slidesCard);
+
+        panel.appendChild(dlGrid);
+        tabPanels.appendChild(panel);
+
+        // Render map overlay and legend for this type
+        renderMapOverlay(type, canvas, svg);
+        renderLegend(type, legendEl);
+    }
+}
+
+function showTab(type) {
+    activeTab = type;
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.type === type));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'panel-' + type));
+}
+
+function buildStats(type) {
+    const result = results[type];
+    const data = result.data;
+    const config = TYPE_CONFIG[type];
+    let totalItems = 0, totalSpeciesCount = 0;
+
+    if (type === 'forracao') {
+        const areas = data.areas;
+        for (const label of Object.keys(areas)) {
+            totalSpeciesCount++;
+            totalItems += areas[label].paths.length;
+        }
+    } else {
+        const species = data.species;
+        for (const code of Object.keys(species)) {
+            totalSpeciesCount++;
+            totalItems += species[code].positions.length;
+        }
+    }
+
+    const statsDiv = document.createElement('div');
+    statsDiv.className = 'preview-stats';
+
+    const stat1 = document.createElement('div');
+    stat1.className = 'stat';
+    const strong1 = document.createElement('strong');
+    strong1.textContent = String(totalItems);
+    const span1 = document.createElement('span');
+    span1.textContent = config.unit;
+    stat1.appendChild(strong1);
+    stat1.appendChild(span1);
+
+    const stat2 = document.createElement('div');
+    stat2.className = 'stat';
+    const strong2 = document.createElement('strong');
+    strong2.textContent = String(totalSpeciesCount);
+    const span2 = document.createElement('span');
+    span2.textContent = 'especies';
+    stat2.appendChild(strong2);
+    stat2.appendChild(span2);
+
+    statsDiv.appendChild(stat1);
+    statsDiv.appendChild(stat2);
+    return statsDiv;
+}
+
+function renderMapOverlay(type, canvas, svg) {
+    const result = results[type];
+    const data = result.data;
+    const bgCanvas = result.bgCanvas;
+    const config = TYPE_CONFIG[type];
+
+    // Copy background to canvas
+    canvas.width = bgCanvas.width;
+    canvas.height = bgCanvas.height;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(bgCanvas, 0, 0);
+
+    // Draw SVG overlay
+    svg.setAttribute('viewBox', '0 0 ' + pageW + ' ' + pageH);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+    while (svg.firstChild) svg.removeChild(svg.firstChild);
+
+    if (type === 'forracao') {
+        const areas = data.areas;
+        for (const label of Object.keys(areas)) {
+            const areaInfo = areas[label];
+            for (const path of areaInfo.paths) {
+                if (path.length < 2) continue;
+                const dAttr = 'M ' + path.map(function(p) { return p[0] + ',' + p[1]; }).join(' L ') + ' Z';
+                const el = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                el.setAttribute('d', dAttr);
+                el.setAttribute('fill', areaInfo.color);
+                el.setAttribute('fill-opacity', '0.6');
+                el.setAttribute('stroke', areaInfo.color);
+                el.setAttribute('stroke-width', '0.5');
+                el.setAttribute('stroke-opacity', '0.3');
+                svg.appendChild(el);
+            }
+        }
+    } else {
+        const species = data.species;
+        const r = pageW * config.radiusRatio;
+        const dashArray = type === 'arbusto' ? '4,2' : '';
+        for (const code of Object.keys(species)) {
+            const info = species[code];
+            for (const p of info.positions) {
+                const c = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                c.setAttribute('cx', p.x); c.setAttribute('cy', p.y); c.setAttribute('r', r);
+                c.setAttribute('fill', info.color); c.setAttribute('fill-opacity', String(CIRCLE_OPACITY));
+                c.setAttribute('stroke', 'white'); c.setAttribute('stroke-width', '2.5');
+                if (dashArray) c.setAttribute('stroke-dasharray', dashArray);
+                svg.appendChild(c);
+            }
+        }
+    }
+}
+
+function renderLegend(type, legendEl) {
+    const data = results[type].data;
+    const config = TYPE_CONFIG[type];
+    while (legendEl.firstChild) legendEl.removeChild(legendEl.firstChild);
+
+    if (type === 'forracao') {
+        for (const label of Object.keys(data.areas)) {
+            const info = data.areas[label];
+            legendEl.appendChild(createLegendItem(info.color, label, '', info.paths.length, 'areas', true));
+        }
+    } else {
+        for (const code of Object.keys(data.species)) {
+            const info = data.species[code];
+            legendEl.appendChild(createLegendItem(info.color, code, info.name || '', info.positions.length, 'un.', false));
+        }
+    }
+}
+
+function renderComposite(type, scale) {
+    const result = results[type];
+    const data = result.data;
+    const bgCanvas = result.bgCanvas;
+    const config = TYPE_CONFIG[type];
+
+    var w = pageW * scale, h = pageH * scale;
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(bgCanvas, 0, 0, w, h);
+
+    if (type === 'forracao') {
+        for (var label of Object.keys(data.areas)) {
+            var info = data.areas[label];
+            var rgb = hexToRgb(info.color);
+            ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.6)';
+            for (var path of info.paths) {
+                if (path.length < 3) continue;
+                ctx.beginPath();
+                ctx.moveTo(path[0][0] * scale, path[0][1] * scale);
+                for (var i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i][0] * scale, path[i][1] * scale);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+    } else {
+        var r = pageW * config.radiusRatio * scale;
+        for (var code of Object.keys(data.species)) {
+            var info = data.species[code];
+            var rgb = hexToRgb(info.color);
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5 * scale;
+            for (var p of info.positions) {
+                ctx.beginPath(); ctx.arc(p.x * scale, p.y * scale, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + CIRCLE_OPACITY + ')'; ctx.fill(); ctx.stroke();
+            }
+        }
+    }
+    return c;
+}
+
+function getExportEntries(type) {
+    const data = results[type].data;
+    const config = TYPE_CONFIG[type];
+    if (type === 'forracao') {
+        return Object.keys(data.areas).map(function(label) {
+            var info = data.areas[label];
+            return { key: label, color: info.color, count: info.paths.length, unit: 'areas', name: '' };
+        });
+    }
+    return Object.keys(data.species).map(function(code) {
+        var info = data.species[code];
+        return { key: code, color: info.color, count: info.positions.length, unit: 'un.', name: info.name || '' };
+    });
+}
+
+function exportPNG(type) {
+    var config = TYPE_CONFIG[type];
+    var s = 2, mc = renderComposite(type, s);
+    var hH = 80, lH = 50, tH = hH + mc.height + lH;
+    var out = document.createElement('canvas'); out.width = mc.width; out.height = tH;
+    var ctx = out.getContext('2d');
+    ctx.fillStyle = 'white'; ctx.fillRect(0, 0, out.width, tH);
+    ctx.fillStyle = '#222'; ctx.font = 'bold ' + (24*s) + 'px Helvetica,Arial,sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('IMPLANTACAO DE VEGETACAO', out.width/2, 30*s);
+    ctx.fillStyle = '#777'; ctx.font = (11*s) + 'px Helvetica,Arial,sans-serif';
+    ctx.fillText('Plano de Paisagismo - ' + config.labelFull, out.width/2, 48*s);
+    ctx.strokeStyle = '#ddd'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(40*s, hH-2); ctx.lineTo(out.width-40*s, hH-2); ctx.stroke();
+    ctx.drawImage(mc, 0, hH);
+    var lY = hH + mc.height + 8;
+    ctx.beginPath(); ctx.moveTo(40*s, lY-6); ctx.lineTo(out.width-40*s, lY-6); ctx.stroke();
+
+    var entries = getExportEntries(type).filter(function(e) { return e.count > 0; });
+    var segW = out.width / Math.max(entries.length, 1);
+    entries.forEach(function(entry, i) {
+        var cx = segW*i + segW/2;
+        if (type === 'forracao') {
+            ctx.fillStyle = entry.color;
+            ctx.fillRect(cx-58*s, lY+4, 16*s, 16*s);
+        } else {
+            ctx.beginPath(); ctx.arc(cx-50*s, lY+12, 8*s, 0, Math.PI*2);
+            ctx.fillStyle = entry.color; ctx.fill();
+        }
+        ctx.fillStyle = '#333'; ctx.font = 'bold ' + (10*s) + 'px Helvetica,Arial,sans-serif'; ctx.textAlign = 'left';
+        var labelText = entry.name ? entry.key + '  ' + entry.name : entry.key;
+        ctx.fillText(labelText + ' (' + entry.count + ' ' + entry.unit + ')', cx-36*s, lY+16);
+    });
+    var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
+    out.toBlob(function(b) { var a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = 'mapa_' + suffix + '.png'; a.click(); }, 'image/png');
+}
+
+function exportPDF(type) {
+    var config = TYPE_CONFIG[type];
+    var s = 1.5, comp = renderComposite(type, s);
+    var img = comp.toDataURL('image/jpeg', 0.90);
+    var jsPDFLib = window.jspdf;
+    var pw = comp.width*0.75, ph = comp.height*0.75, m = 40, hH = 50, lH = 40;
+    var tw = pw + m*2;
+    var doc = new jsPDFLib.jsPDF({ orientation: pw > ph ? 'landscape' : 'portrait', unit: 'pt', format: [tw, ph+hH+lH+m*2] });
+    doc.setFont('helvetica','bold'); doc.setFontSize(18); doc.setTextColor(34,34,34);
+    doc.text('IMPLANTACAO DE VEGETACAO', tw/2, m+20, { align: 'center' });
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(119,119,119);
+    doc.text('Plano de Paisagismo - ' + config.labelFull, tw/2, m+34, { align: 'center' });
+    doc.setDrawColor(221,221,221); doc.line(m, m+hH-4, tw-m, m+hH-4);
+    doc.addImage(img, 'JPEG', m, m+hH, pw, ph);
+    var lY = m+hH+ph+8; doc.line(m, lY-4, tw-m, lY-4);
+
+    var entries = getExportEntries(type).filter(function(e) { return e.count > 0; });
+    var segW = pw / Math.max(entries.length, 1);
+    entries.forEach(function(entry, i) {
+        var cx = m + segW*i + segW/2, rgb = hexToRgb(entry.color);
+        doc.setFillColor(rgb.r, rgb.g, rgb.b);
+        if (type === 'forracao') {
+            doc.rect(cx-44, lY+3, 10, 10, 'F');
+        } else {
+            doc.circle(cx-40, lY+8, 5, 'F');
+        }
+        doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(51,51,51);
+        var labelText = entry.name ? entry.key + '  ' + entry.name : entry.key;
+        doc.text(labelText + ' (' + entry.count + ' ' + entry.unit + ')', cx-28, lY+11);
+    });
+    doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(160,160,160);
+    doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', tw/2, doc.internal.pageSize.getHeight()-10, { align: 'center' });
+    var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
+    doc.save('mapa_' + suffix + '.pdf');
+}
+
+function exportAllPDF() {
+    var types = Object.keys(results);
+    if (types.length === 0) return;
+    var jsPDFLib = window.jspdf;
+    var s = 1.5;
+    var doc = null;
+
+    for (var t = 0; t < types.length; t++) {
+        var type = types[t];
+        var config = TYPE_CONFIG[type];
+        var comp = renderComposite(type, s);
+        var img = comp.toDataURL('image/jpeg', 0.90);
+        var pw = comp.width * 0.75, ph = comp.height * 0.75;
+        var m = 40, hH = 50, lH = 40;
+        var tw = pw + m * 2;
+        var pageH = ph + hH + lH + m * 2;
+        var orientation = pw > ph ? 'landscape' : 'portrait';
+
+        if (doc === null) {
+            doc = new jsPDFLib.jsPDF({ orientation: orientation, unit: 'pt', format: [tw, pageH] });
+        } else {
+            doc.addPage([tw, pageH], orientation);
+        }
+
+        doc.setFont('helvetica', 'bold'); doc.setFontSize(18); doc.setTextColor(34, 34, 34);
+        doc.text('IMPLANTACAO DE VEGETACAO', tw / 2, m + 20, { align: 'center' });
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(9); doc.setTextColor(119, 119, 119);
+        doc.text('Plano de Paisagismo - ' + config.labelFull, tw / 2, m + 34, { align: 'center' });
+        doc.setDrawColor(221, 221, 221); doc.line(m, m + hH - 4, tw - m, m + hH - 4);
+        doc.addImage(img, 'JPEG', m, m + hH, pw, ph);
+
+        var lY = m + hH + ph + 8; doc.line(m, lY - 4, tw - m, lY - 4);
+        var entries = getExportEntries(type).filter(function(e) { return e.count > 0; });
+        var segW = pw / Math.max(entries.length, 1);
+        entries.forEach(function(entry, i) {
+            var cx = m + segW * i + segW / 2;
+            var rgb = hexToRgb(entry.color);
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            if (type === 'forracao') {
+                doc.rect(cx - 44, lY + 3, 10, 10, 'F');
+            } else {
+                doc.circle(cx - 40, lY + 8, 5, 'F');
+            }
+            doc.setFont('helvetica', 'bold'); doc.setFontSize(8); doc.setTextColor(51, 51, 51);
+            var labelText = entry.name ? entry.key + '  ' + entry.name : entry.key;
+            doc.text(labelText + ' (' + entry.count + ' ' + entry.unit + ')', cx - 28, lY + 11);
+        });
+
+        doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(160, 160, 160);
+        doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', tw / 2, pageH - 10, { align: 'center' });
+    }
+
+    if (doc) doc.save('mapa_vegetacao_completo.pdf');
+}
+
+// --- Species Slides Presentation ---
+
+function renderSlideComposite(type, highlightCodes, scale) {
+    // Renders the implantation image highlighting only the specified species codes
+    // All other species are invisible
+    var result = results[type];
+    var data = result.data;
+    var bgCanvas = result.bgCanvas;
+    var config = TYPE_CONFIG[type];
+
+    var w = pageW * scale, h = pageH * scale;
+    var c = document.createElement('canvas'); c.width = w; c.height = h;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(bgCanvas, 0, 0, w, h);
+
+    if (type === 'forracao') {
+        for (var label of Object.keys(data.areas)) {
+            var info = data.areas[label];
+            var isHighlighted = highlightCodes.indexOf(label) >= 0;
+            if (!isHighlighted) continue; // skip non-highlighted species
+            var rgb = hexToRgb(info.color);
+            ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',0.6)';
+            for (var path of info.paths) {
+                if (path.length < 3) continue;
+                ctx.beginPath();
+                ctx.moveTo(path[0][0] * scale, path[0][1] * scale);
+                for (var i = 1; i < path.length; i++) {
+                    ctx.lineTo(path[i][0] * scale, path[i][1] * scale);
+                }
+                ctx.closePath();
+                ctx.fill();
+            }
+        }
+    } else {
+        var r = pageW * config.radiusRatio * scale;
+        for (var code of Object.keys(data.species)) {
+            var info = data.species[code];
+            var isHighlighted = highlightCodes.indexOf(code) >= 0;
+            if (!isHighlighted) continue; // skip non-highlighted species
+            var rgb = hexToRgb(info.color);
+            ctx.strokeStyle = 'rgba(255,255,255,0.9)'; ctx.lineWidth = 2.5 * scale;
+            for (var p of info.positions) {
+                ctx.beginPath(); ctx.arc(p.x * scale, p.y * scale, r, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(' + rgb.r + ',' + rgb.g + ',' + rgb.b + ',' + CIRCLE_OPACITY + ')';
+                ctx.fill(); ctx.stroke();
+            }
+        }
+    }
+    return c;
+}
+
+function getSpeciesInfo(code) {
+    // Lookup species in the consolidated database, fallback to extraction data
+    if (speciesDB[code]) {
+        var sp = speciesDB[code];
+        return {
+            scientific: sp.scientific_name || '',
+            common: sp.common_name || '',
+            origin: sp.origin || '',
+            sun: sp.sun_exposure || '',
+            typeLabel: sp.type_label || '',
+            oldCode: sp.old_code || '',
+            imageUrl: sp.image_url || '',
+        };
+    }
+    return { scientific: '', common: '', origin: '', sun: '', typeLabel: '', oldCode: '', imageUrl: '' };
+}
+
+function loadImage(url) {
+    return new Promise(function(resolve) {
+        var img = new Image();
+        img.crossOrigin = 'anonymous';
+        img.onload = function() { resolve(img); };
+        img.onerror = function() { resolve(null); };
+        img.src = url;
+    });
+}
+
+function imageToDataUrl(img, maxW, maxH) {
+    if (!img) return null;
+    var w = img.naturalWidth, h = img.naturalHeight;
+    var scale = Math.min(maxW / w, maxH / h, 1);
+    var cw = Math.round(w * scale), ch = Math.round(h * scale);
+    var c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    var ctx = c.getContext('2d');
+    ctx.drawImage(img, 0, 0, cw, ch);
+    return c.toDataURL('image/jpeg', 0.85);
+}
+
+async function generateSpeciesSlides(type) {
+    var result = results[type];
+    var data = result.data;
+    var config = TYPE_CONFIG[type];
+    var jsPDFLib = window.jspdf;
+
+    statusText.textContent = 'Gerando apresentacao...';
+
+    // Collect all species entries enriched with DB info
+    var allEntries = [];
+    if (type === 'forracao') {
+        for (var label of Object.keys(data.areas)) {
+            var info = data.areas[label];
+            var codes = label.replace(/\([^)]*\)/g, '').split('+').map(function(c) { return c.trim(); });
+            var dbInfo = getSpeciesInfo(codes[0]);
+            allEntries.push({
+                code: label, color: info.color,
+                name: dbInfo.scientific || label,
+                common: dbInfo.common,
+                origin: dbInfo.origin, sun: dbInfo.sun,
+                imageUrl: dbInfo.imageUrl,
+                count: info.paths.length, unit: 'areas'
+            });
+        }
+    } else {
+        for (var code of Object.keys(data.species)) {
+            var info = data.species[code];
+            var dbInfo = getSpeciesInfo(code);
+            allEntries.push({
+                code: code, color: info.color,
+                name: dbInfo.scientific || info.name || '',
+                common: dbInfo.common || info.common || '',
+                origin: dbInfo.origin, sun: dbInfo.sun,
+                imageUrl: dbInfo.imageUrl,
+                count: info.positions.length, unit: 'un.'
+            });
+        }
+    }
+
+    if (allEntries.length === 0) { statusText.textContent = ''; return; }
+
+    // Preload all species images
+    var imagePromises = allEntries.map(function(entry) {
+        if (entry.imageUrl) return loadImage(entry.imageUrl);
+        return Promise.resolve(null);
+    });
+    var loadedImages = await Promise.all(imagePromises);
+    for (var i = 0; i < allEntries.length; i++) {
+        allEntries[i]._img = loadedImages[i];
+    }
+
+    // Group into chunks of 5
+    var SPECIES_PER_SLIDE = 5;
+    var slides = [];
+    for (var i = 0; i < allEntries.length; i += SPECIES_PER_SLIDE) {
+        slides.push(allEntries.slice(i, i + SPECIES_PER_SLIDE));
+    }
+
+    // PDF dimensions (landscape 16:9)
+    var slideW = 1120, slideH = 630;
+    var doc = new jsPDFLib.jsPDF({ orientation: 'landscape', unit: 'pt', format: [slideW, slideH] });
+
+    var mapScale = 1.0;
+    var totalSlides = slides.length;
+
+    for (var s = 0; s < slides.length; s++) {
+        var slideEntries = slides[s];
+        var slideCodes = slideEntries.map(function(e) { return e.code; });
+        var hasImages = slideEntries.some(function(e) { return e._img; });
+
+        if (s > 0) doc.addPage([slideW, slideH], 'landscape');
+
+        statusText.textContent = 'Gerando slide ' + (s + 1) + ' de ' + totalSlides + '...';
+
+        // --- White background ---
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, slideW, slideH, 'F');
+
+        // --- Header bar ---
+        doc.setFillColor(245, 245, 245);
+        doc.rect(0, 0, slideW, 48, 'F');
+        doc.setDrawColor(220, 220, 220);
+        doc.line(0, 48, slideW, 48);
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(14);
+        doc.setTextColor(34, 34, 34);
+        doc.text('IMPLANTACAO DE VEGETACAO', 24, 30);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(130, 130, 130);
+        doc.text(config.labelFull + '  |  Especies ' + (s * SPECIES_PER_SLIDE + 1) + '-' + (s * SPECIES_PER_SLIDE + slideEntries.length) + ' de ' + allEntries.length, 24, 42);
+
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(9);
+        doc.setTextColor(160, 160, 160);
+        doc.text('Slide ' + (s + 1) + '/' + totalSlides, slideW - 24, 30, { align: 'right' });
+
+        // --- Layout: 3 columns when images exist ---
+        var contentTop = 60;
+        var contentH = slideH - contentTop - 30;
+
+        // Map area (left), species list (middle), images (right)
+        var mapAreaW, listAreaX, listAreaW, imgAreaX, imgAreaW;
+        if (hasImages) {
+            mapAreaW = slideW * 0.40;
+            listAreaX = mapAreaW + 12;
+            listAreaW = slideW * 0.28;
+            imgAreaX = listAreaX + listAreaW + 8;
+            imgAreaW = slideW - imgAreaX - 16;
+        } else {
+            mapAreaW = slideW * 0.52;
+            listAreaX = mapAreaW + 16;
+            listAreaW = slideW - listAreaX - 24;
+            imgAreaX = 0;
+            imgAreaW = 0;
+        }
+
+        // --- Render implantation with only this slide's species ---
+        var mapCanvas = renderSlideComposite(type, slideCodes, mapScale);
+        var mapImg = mapCanvas.toDataURL('image/jpeg', 0.90);
+
+        var mapDispW = mapAreaW - 24;
+        var mapDispH = mapDispW * (mapCanvas.height / mapCanvas.width);
+        if (mapDispH > contentH) {
+            mapDispH = contentH;
+            mapDispW = mapDispH * (mapCanvas.width / mapCanvas.height);
+        }
+        var mapX = 12 + (mapAreaW - 24 - mapDispW) / 2;
+        var mapY = contentTop + (contentH - mapDispH) / 2;
+
+        doc.setDrawColor(200, 200, 200);
+        doc.setLineWidth(0.5);
+        doc.rect(mapX - 2, mapY - 2, mapDispW + 4, mapDispH + 4);
+        doc.addImage(mapImg, 'JPEG', mapX, mapY, mapDispW, mapDispH);
+
+        // --- Species list ---
+        var listY = contentTop + 8;
+        var entryHeight = Math.min(100, (contentH - 28) / Math.max(slideEntries.length, 1));
+
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(10);
+        doc.setTextColor(60, 60, 60);
+        doc.text('ESPECIES', listAreaX, listY);
+        listY += 18;
+
+        for (var e = 0; e < slideEntries.length; e++) {
+            var entry = slideEntries[e];
+            var ey = listY + e * entryHeight;
+            var rgb = hexToRgb(entry.color);
+
+            // Color stripe
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            doc.rect(listAreaX, ey - 2, 4, entryHeight - 10, 'F');
+
+            // Color marker
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            if (type === 'forracao') {
+                doc.roundedRect(listAreaX + 10, ey, 12, 12, 2, 2, 'F');
+            } else {
+                doc.circle(listAreaX + 16, ey + 6, 6, 'F');
+            }
+
+            var textX = listAreaX + 28;
+            var lineY = ey;
+
+            // Species code + count badge
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(34, 34, 34);
+            doc.text(entry.code, textX, lineY + 9);
+
+            var countText = entry.count + ' ' + entry.unit;
+            var codeWidth = doc.getTextWidth(entry.code);
+            doc.setFont('helvetica', 'normal');
+            doc.setFontSize(7);
+            doc.setTextColor(255, 255, 255);
+            var badgeW = doc.getTextWidth(countText) + 6;
+            doc.setFillColor(rgb.r, rgb.g, rgb.b);
+            doc.roundedRect(textX + codeWidth + 4, lineY + 1.5, badgeW, 10, 2, 2, 'F');
+            doc.text(countText, textX + codeWidth + 7, lineY + 8.5);
+
+            lineY += 14;
+
+            // Scientific name
+            if (entry.name) {
+                doc.setFont('helvetica', 'italic');
+                doc.setFontSize(8);
+                doc.setTextColor(80, 80, 80);
+                var nameText = entry.name;
+                if (nameText.length > 35) nameText = nameText.substring(0, 33) + '...';
+                doc.text(nameText, textX, lineY + 3);
+                lineY += 11;
+            }
+
+            // Common name
+            if (entry.common) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(7);
+                doc.setTextColor(120, 120, 120);
+                doc.text(entry.common, textX, lineY + 3);
+                lineY += 10;
+            }
+
+            // Origin + sun
+            var metaLine = [];
+            if (entry.origin) metaLine.push(entry.origin);
+            if (entry.sun) metaLine.push(entry.sun);
+            if (metaLine.length > 0) {
+                doc.setFont('helvetica', 'normal');
+                doc.setFontSize(6);
+                doc.setTextColor(160, 160, 160);
+                doc.text(metaLine.join(' | '), textX, lineY + 2);
+            }
+
+            // Separator
+            if (e < slideEntries.length - 1) {
+                var sepY = ey + entryHeight - 8;
+                doc.setDrawColor(235, 235, 235);
+                doc.setLineWidth(0.3);
+                doc.line(listAreaX + 10, sepY, listAreaX + listAreaW - 4, sepY);
+            }
+        }
+
+        // --- Species images (right column) ---
+        if (hasImages) {
+            doc.setFont('helvetica', 'bold');
+            doc.setFontSize(10);
+            doc.setTextColor(60, 60, 60);
+            doc.text('FOTOS', imgAreaX, contentTop + 8);
+
+            var imgSlotH = (contentH - 28) / Math.max(slideEntries.length, 1);
+            var imgMaxW = imgAreaW - 8;
+            var imgMaxH = imgSlotH - 16;
+
+            for (var e = 0; e < slideEntries.length; e++) {
+                var entry = slideEntries[e];
+                var slotY = contentTop + 26 + e * imgSlotH;
+
+                if (entry._img) {
+                    var dataUrl = imageToDataUrl(entry._img, imgMaxW * 2, imgMaxH * 2);
+                    if (dataUrl) {
+                        // Calculate proportional fit
+                        var iw = entry._img.naturalWidth, ih = entry._img.naturalHeight;
+                        var imgScale = Math.min(imgMaxW / iw, imgMaxH / ih, 1);
+                        var dw = iw * imgScale, dh = ih * imgScale;
+                        var ix = imgAreaX + (imgMaxW - dw) / 2;
+                        var iy = slotY + (imgMaxH - dh) / 2;
+
+                        // Image border
+                        doc.setDrawColor(220, 220, 220);
+                        doc.setLineWidth(0.5);
+                        doc.roundedRect(ix - 2, iy - 2, dw + 4, dh + 4, 3, 3);
+                        doc.addImage(dataUrl, 'JPEG', ix, iy, dw, dh);
+
+                        // Code label below image
+                        var rgb = hexToRgb(entry.color);
+                        doc.setFont('helvetica', 'bold');
+                        doc.setFontSize(7);
+                        doc.setTextColor(rgb.r, rgb.g, rgb.b);
+                        doc.text(entry.code, ix + dw / 2, iy + dh + 10, { align: 'center' });
+                    }
+                } else {
+                    // No image placeholder
+                    doc.setDrawColor(230, 230, 230);
+                    doc.setLineWidth(0.3);
+                    var phW = Math.min(imgMaxW, imgMaxH * 0.8);
+                    var phH = phW;
+                    var phX = imgAreaX + (imgMaxW - phW) / 2;
+                    var phY = slotY + (imgMaxH - phH) / 2;
+                    doc.roundedRect(phX, phY, phW, phH, 3, 3);
+                    doc.setFont('helvetica', 'normal');
+                    doc.setFontSize(7);
+                    doc.setTextColor(200, 200, 200);
+                    doc.text('sem foto', phX + phW / 2, phY + phH / 2 + 2, { align: 'center' });
+                }
+            }
+        }
+
+        // --- Footer ---
+        doc.setDrawColor(220, 220, 220);
+        doc.line(24, slideH - 20, slideW - 24, slideH - 20);
+        doc.setFont('helvetica', 'normal');
+        doc.setFontSize(7);
+        doc.setTextColor(180, 180, 180);
+        doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', slideW / 2, slideH - 10, { align: 'center' });
+    }
+
+    var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
+    doc.save('apresentacao_especies_' + suffix + '.pdf');
+    statusText.textContent = '';
+}
+
+async function generateInteractiveHTML() {
+    statusText.textContent = 'Gerando HTML interativo...';
+    try {
+        // Call the species API to get all data
+        var spResp = await fetch('/api/species');
+        var spData = spResp.ok ? await spResp.json() : { species: {} };
+        var db = spData.species || {};
+
+        // For each processed type, build SVG data
+        var htmlTypes = {};
+        for (var type of Object.keys(results)) {
+            var data = results[type].data;
+            var config = TYPE_CONFIG[type];
+            var entries = [];
+
+            if (type === 'forracao') {
+                for (var label of Object.keys(data.areas || {})) {
+                    var info = data.areas[label];
+                    var codes = label.replace(/\([^)]*\)/g, '').split('+').map(function(c) { return c.trim(); });
+                    var sp = db[codes[0]] || {};
+                    entries.push({
+                        code: label, color: info.color, count: info.paths.length,
+                        scientific: sp.scientific_name || '', common: sp.common_name || '',
+                        origin: sp.origin || '', sun: sp.sun_exposure || '',
+                        img: sp.image_url || '', positions: [],
+                        svg_paths: info.paths.map(function(path) {
+                            return 'M ' + path.map(function(p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' L ') + ' Z';
+                        })
+                    });
+                }
+            } else {
+                for (var code of Object.keys(data.species || {})) {
+                    var info = data.species[code];
+                    var sp = db[code] || {};
+                    entries.push({
+                        code: code, color: info.color, count: info.positions.length,
+                        scientific: sp.scientific_name || info.name || '',
+                        common: sp.common_name || '', origin: sp.origin || '',
+                        sun: sp.sun_exposure || '', img: sp.image_url || '',
+                        positions: info.positions, svg_paths: []
+                    });
+                }
+            }
+            htmlTypes[type] = {
+                label: config.labelFull, type: type,
+                pw: pageW, ph: pageH, entries: entries
+            };
+        }
+
+        // Get map as base64
+        var bgCanvas = results[Object.keys(results)[0]].bgCanvas;
+        for (var type of Object.keys(htmlTypes)) {
+            htmlTypes[type].map = bgCanvas.toDataURL('image/jpeg', 0.7);
+        }
+
+        // Preload species images as base64
+        for (var type of Object.keys(htmlTypes)) {
+            for (var e of htmlTypes[type].entries) {
+                if (e.img) {
+                    try {
+                        var imgEl = await loadImage(e.img);
+                        if (imgEl) e.img = imageToDataUrl(imgEl, 500, 400);
+                        else e.img = '';
+                    } catch(x) { e.img = ''; }
+                }
+            }
+        }
+
+        var total = Object.values(htmlTypes).reduce(function(s, d) { return s + d.entries.length; }, 0);
+        var totalItems = Object.values(htmlTypes).reduce(function(s, d) {
+            return s + d.entries.reduce(function(s2, e) { return s2 + e.count; }, 0);
+        }, 0);
+
+        // Build HTML string
+        var html = buildInteractiveHTML(htmlTypes, total, totalItems);
+        var blob = new Blob([html], { type: 'text/html' });
+        var a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'especies_interativo.html';
+        a.click();
+        statusText.textContent = '';
+    } catch(err) {
+        console.error(err);
+        statusText.textContent = 'Erro ao gerar HTML: ' + err.message;
+    }
+}
+
+function buildInteractiveHTML(types, total, totalItems) {
+    return '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+    '<meta name="viewport" content="width=device-width,initial-scale=1">' +
+    '<title>Legenda de Especies</title><style>' +
+    '*{margin:0;padding:0;box-sizing:border-box}' +
+    'body{font-family:system-ui,sans-serif;background:#f5f5f5;color:#222;overflow:hidden;height:100vh}' +
+    '.hd{background:#1a1d21;color:#fff;padding:14px 20px;display:flex;justify-content:space-between;align-items:center}' +
+    '.hd h1{font-size:15px;font-weight:600;letter-spacing:1px}' +
+    '.hd .st{display:flex;gap:16px}.hd .n{font-size:18px;font-weight:700;color:#4CAF50}.hd .l{font-size:8px;color:#888;text-transform:uppercase;letter-spacing:1px}' +
+    '.tabs{display:flex;background:#242830}.tb{padding:9px 20px;cursor:pointer;color:#888;font-size:11px;font-weight:600;border-bottom:3px solid transparent;transition:all .15s}' +
+    '.tb:hover{color:#ccc}.tb.on{color:#4CAF50;border-bottom-color:#4CAF50;background:#1a1d21}' +
+    '.mn{display:flex;height:calc(100vh - 90px)}.mp{flex:1;position:relative;background:#fff;overflow:hidden}' +
+    '.mp img{display:block;width:100%;height:100%;object-fit:contain}' +
+    '.mp svg{position:absolute;top:0;left:0;width:100%;height:100%}' +
+    '.lg{width:320px;overflow-y:auto;background:#fff;border-left:1px solid #e0e0e0}' +
+    '.lh{padding:12px 14px 6px;font-size:9px;font-weight:700;color:#888;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid #eee;position:sticky;top:0;background:#fff;z-index:2}' +
+    '.sr{display:flex;align-items:center;gap:7px;padding:7px 14px;cursor:pointer;border-bottom:1px solid #f5f5f5;transition:background .1s}' +
+    '.sr:hover,.sr.on{background:#e8f5e9}.sd{width:10px;height:10px;border-radius:50%;flex-shrink:0}' +
+    '.si{flex:1;min-width:0}.sc{font-weight:700;font-size:11px}.sn{font-size:9px;color:#666;font-style:italic;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.sm{font-size:8px;color:#aaa}' +
+    '.sb{font-size:9px;color:#fff;padding:2px 6px;border-radius:10px;font-weight:600;flex-shrink:0}' +
+    '.tt{position:fixed;z-index:1000;pointer-events:none;opacity:0;transition:opacity .12s;background:#fff;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.25);border:1px solid #e0e0e0;overflow:hidden;max-width:260px}' +
+    '.tt.show{opacity:1}.tt img{display:block;width:240px;height:auto;max-height:180px;object-fit:cover}' +
+    '.tt .ti{padding:8px 12px}.tt .tc{font-weight:700;font-size:12px}.tt .ts{font-style:italic;font-size:10px;color:#555;margin-top:2px}.tt .tn{font-size:9px;color:#888;margin-top:2px}.tt .tm{font-size:8px;color:#aaa;margin-top:3px}' +
+    '.tt .ni{width:240px;height:60px;background:#f5f5f5;display:flex;align-items:center;justify-content:center;color:#ccc;font-size:11px}' +
+    '@media(max-width:900px){body{overflow:auto;height:auto}.hd{flex-direction:column;gap:6px;text-align:center;padding:10px}.tabs{overflow-x:auto}.tb{white-space:nowrap;flex-shrink:0}' +
+    '.mn{flex-direction:column;height:auto}.mp{width:100%;height:auto;aspect-ratio:16/11;flex:none;max-height:55vh}.lg{width:100%;height:auto;border-left:none;border-top:1px solid #e0e0e0;overflow-y:visible;max-height:none}.lh{position:relative}.tt{display:none!important}}' +
+    '</style></head><body>' +
+    '<div class="hd"><h1>LEGENDA DE ESPECIES</h1><div class="st"><div><span class="n">' + total + '</span> <span class="l">especies</span></div><div><span class="n">' + totalItems + '</span> <span class="l">itens</span></div></div></div>' +
+    '<div class="tabs" id="tabs"></div><div class="mn"><div class="mp" id="mp"><img id="mi"><svg id="ms" xmlns="http://www.w3.org/2000/svg"></svg></div><div class="lg" id="lg"></div></div>' +
+    '<div class="tt" id="tt"></div>' +
+    '<script>var D=' + JSON.stringify(types) + ';' +
+    'var tabs=document.getElementById("tabs"),mi=document.getElementById("mi"),ms=document.getElementById("ms"),lg=document.getElementById("lg"),tt=document.getElementById("tt");' +
+    'Object.keys(D).forEach(function(t,i){var d=D[t],b=document.createElement("div");b.className="tb"+(i===0?" on":"");b.textContent=d.label+" ("+d.entries.length+")";b.onclick=function(){show(t)};tabs.appendChild(b)});' +
+    'function show(t){document.querySelectorAll(".tb").forEach(function(b,i){b.classList.toggle("on",Object.keys(D)[i]===t)});var d=D[t];mi.src=d.map;' +
+    'ms.setAttribute("viewBox","0 0 "+d.pw+" "+d.ph);ms.setAttribute("preserveAspectRatio","xMidYMid meet");ms.innerHTML="";' +
+    'var isF=d.type==="forracao",r=d.pw*(d.type==="arbusto"?0.006:0.0134);' +
+    'd.entries.forEach(function(e){var g=document.createElementNS("http://www.w3.org/2000/svg","g");g.dataset.code=e.code;g.style.cursor="pointer";' +
+    'if(isF&&e.svg_paths.length>0){e.svg_paths.forEach(function(pd){var p=document.createElementNS("http://www.w3.org/2000/svg","path");p.setAttribute("d",pd);p.setAttribute("fill",e.color);p.setAttribute("fill-opacity","0.55");p.setAttribute("stroke",e.color);p.setAttribute("stroke-width","1");g.appendChild(p)})}' +
+    'else{e.positions.forEach(function(pos){var c=document.createElementNS("http://www.w3.org/2000/svg","circle");c.setAttribute("cx",pos.x);c.setAttribute("cy",pos.y);c.setAttribute("r",r);c.setAttribute("fill",e.color);c.setAttribute("fill-opacity","0.75");c.setAttribute("stroke","#fff");c.setAttribute("stroke-width","2.5");g.appendChild(c)})}' +
+    'g.onmouseenter=function(ev){hl(e.code);stt(ev,e)};g.onmouseleave=function(){ul();htt()};ms.appendChild(g)});' +
+    'lg.innerHTML="<div class=\\"lh\\">"+d.label+"</div>";d.entries.forEach(function(e){var row=document.createElement("div");row.className="sr";row.dataset.code=e.code;' +
+    'row.innerHTML="<div class=\\"sd\\" style=\\"background:"+e.color+"\\"></div><div class=\\"si\\"><div class=\\"sc\\">"+e.code+"</div>"+(e.scientific?"<div class=\\"sn\\">"+e.scientific+"</div>":"")+(e.common?"<div class=\\"sm\\">"+e.common+"</div>":"")+"</div><div class=\\"sb\\" style=\\"background:"+e.color+"\\">"+e.count+"</div>";' +
+    'row.onmouseenter=function(ev){hl(e.code);stt(ev,e)};row.onmouseleave=function(){ul();htt()};lg.appendChild(row)})}' +
+    'function hl(c){ms.querySelectorAll("g").forEach(function(g){g.style.opacity=g.dataset.code===c?"1":"0.15"});lg.querySelectorAll(".sr").forEach(function(r){r.classList.toggle("on",r.dataset.code===c)})}' +
+    'function ul(){ms.querySelectorAll("g").forEach(function(g){g.style.opacity="1"});lg.querySelectorAll(".sr").forEach(function(r){r.classList.remove("on")})}' +
+    'function stt(ev,e){var h="";if(e.img)h+="<img src=\\""+e.img+"\\">";else h+="<div class=\\"ni\\">sem foto</div>";h+="<div class=\\"ti\\"><div class=\\"tc\\">"+e.code+"</div>";if(e.scientific)h+="<div class=\\"ts\\">"+e.scientific+"</div>";if(e.common)h+="<div class=\\"tn\\">"+e.common+"</div>";var m=[e.origin,e.sun].filter(Boolean).join(" | ");h+="<div class=\\"tm\\">"+(m?m+" | ":"")+e.count+" un.</div></div>";tt.innerHTML=h;tt.classList.add("show");ptt(ev)}' +
+    'function ptt(ev){var x=ev.clientX+16,y=ev.clientY-10,r=tt.getBoundingClientRect();if(x+280>window.innerWidth)x=ev.clientX-280-16;if(y+r.height>window.innerHeight-8)y=window.innerHeight-r.height-8;if(y<8)y=8;tt.style.left=x+"px";tt.style.top=y+"px"}' +
+    'document.addEventListener("mousemove",function(ev){if(tt.classList.contains("show"))ptt(ev)});' +
+    'function htt(){tt.classList.remove("show")}' +
+    'show(Object.keys(D)[0]);' +
+    '<\/script></body></html>';
+}
+
+async function generateSlidesPDF() {
+    // Trigger slides generation for all processed types
+    var types = Object.keys(results);
+    if (types.length === 0) return;
+    // Generate for the first type that has data, or all combined
+    for (var i = 0; i < types.length; i++) {
+        await generateSpeciesSlides(types[i]);
+    }
+}
+
+function resetApp() {
+    pdfFile = null; results = {}; activeTab = null;
+    fileInput.value = ''; fileNameEl.textContent = '';
+    processBtn.disabled = true;
+    const tabsBar = $('tabsBar');
+    const tabPanels = $('tabPanels');
+    if (tabsBar) while (tabsBar.firstChild) tabsBar.removeChild(tabsBar.firstChild);
+    if (tabPanels) while (tabPanels.firstChild) tabPanels.removeChild(tabPanels.firstChild);
+    var exportAllBtn = $('exportAllBtn');
+    if (exportAllBtn) exportAllBtn.style.display = 'none';
+    uploadSection.style.display = '';
+    previewSection.classList.remove('active');
+    statusText.textContent = '';
+}
+</script>
+</body>
+</html>

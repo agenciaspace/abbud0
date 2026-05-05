@@ -9,5 +9,8 @@
     "api/species.py": {
       "maxDuration": 60
     }
-  }
+  },
+  "rewrites": [
+    { "source": "/app", "destination": "/app.html" }
+  ]
 }
