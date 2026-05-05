@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Gerador de Mapa de Vegetacao</title>
+    <title>Mapa de Vegetacao &mdash; IA Paisagismo</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
@@ -235,8 +235,8 @@
 </head>
 <body>
     <div class="header">
-        <h1>Mapa de Vegetacao</h1>
-        <span class="tag">Paisagismo Tecnico</span>
+        <h1><a href="/" style="color:inherit;text-decoration:none;">IA Paisagismo</a> <span style="color:var(--text2);font-weight:400;">/ Mapa de Vegetacao</span></h1>
+        <span class="tag">Ferramenta</span>
     </div>
     <div class="container">
         <div id="uploadSection">
@@ -859,7 +859,7 @@ function exportPDF(type) {
         doc.text(labelText + ' (' + entry.count + ' ' + entry.unit + ')', cx-28, lY+11);
     });
     doc.setFont('helvetica','normal'); doc.setFontSize(6); doc.setTextColor(160,160,160);
-    doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', tw/2, doc.internal.pageSize.getHeight()-10, { align: 'center' });
+    doc.text('Gerado por IA Paisagismo - iapaisagismo.com.br', tw/2, doc.internal.pageSize.getHeight()-10, { align: 'center' });
     var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
     doc.save('mapa_' + suffix + '.pdf');
 }
@@ -913,7 +913,7 @@ function exportAllPDF() {
         });
 
         doc.setFont('helvetica', 'normal'); doc.setFontSize(6); doc.setTextColor(160, 160, 160);
-        doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', tw / 2, pageH - 10, { align: 'center' });
+        doc.text('Gerado por IA Paisagismo - iapaisagismo.com.br', tw / 2, pageH - 10, { align: 'center' });
     }
 
     if (doc) doc.save('mapa_vegetacao_completo.pdf');
@@ -1295,7 +1295,7 @@ async function generateSpeciesSlides(type) {
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(7);
         doc.setTextColor(180, 180, 180);
-        doc.text('Gerado por Mapa de Vegetacao - Paisagismo Tecnico', slideW / 2, slideH - 10, { align: 'center' });
+        doc.text('Gerado por IA Paisagismo - iapaisagismo.com.br', slideW / 2, slideH - 10, { align: 'center' });
     }
 
     var suffix = type === 'forracao' ? 'forracoes' : (type === 'arbusto' ? 'arbustos' : 'arvores');
