@@ -3,20 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Vegetacao &mdash; Automatize legendas e mapas de paisagismo a partir de PDFs</title>
-    <meta name="description" content="Transforme PDFs de projeto de paisagismo em mapas interativos, legendas e apresentacoes executivas. Identificacao automatica de arvores, arbustos e forracoes com contagem por especie.">
+    <title>Mapa de Vegetacao &mdash; Do PDF do projeto ao mapa interativo</title>
+    <meta name="description" content="Transforme PDFs de paisagismo em mapas interativos, contagem por especie e apresentacoes executivas. 326 especies catalogadas. Sem instalacao.">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #0f0f0f;
-            --surface: #1a1a1a;
-            --surface2: #242424;
-            --border: #333;
-            --text: #e0e0e0;
-            --text2: #888;
-            --accent: #4CAF50;
-            --accent-dark: #3d8b40;
+            --bg: #0a0a0a;
+            --bg2: #0f0f0f;
+            --surface: #141414;
+            --surface2: #1c1c1c;
+            --border: #262626;
+            --border2: #333;
+            --text: #f5f5f5;
+            --text2: #999;
+            --text3: #666;
+            --accent: #4ADE80;
+            --accent2: #22C55E;
+            --accent-dim: rgba(74, 222, 128, 0.15);
+            --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
         }
 
         html { scroll-behavior: smooth; }
@@ -24,488 +32,901 @@
         body {
             background: var(--bg);
             color: var(--text);
-            font-family: 'SF Pro Display', 'Helvetica Neue', Arial, sans-serif;
-            min-height: 100vh;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             line-height: 1.6;
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
         }
 
         a { color: inherit; text-decoration: none; }
+        button { font-family: inherit; }
 
-        .header {
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            padding: 18px 32px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            backdrop-filter: blur(8px);
+        /* HEADER */
+        .nav {
+            position: fixed; top: 0; left: 0; right: 0;
+            z-index: 100;
+            padding: 14px 32px;
+            display: flex; align-items: center; justify-content: space-between;
+            background: rgba(10,10,10,0.6);
+            backdrop-filter: blur(16px);
+            border-bottom: 1px solid transparent;
+            transition: border-color 0.2s, background 0.2s;
         }
-        .header h1 { font-size: 16px; font-weight: 600; letter-spacing: 2px; text-transform: uppercase; }
-        .header nav { display: flex; gap: 24px; align-items: center; }
-        .header nav a {
-            font-size: 13px; color: var(--text2); transition: color 0.15s;
+        .nav.scrolled { border-bottom-color: var(--border); background: rgba(10,10,10,0.9); }
+        .nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.3px; }
+        .nav .brand .mark {
+            width: 28px; height: 28px; border-radius: 7px;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px;
         }
-        .header nav a:hover { color: var(--text); }
+        .nav .links { display: flex; gap: 28px; align-items: center; }
+        .nav .links a { font-size: 13.5px; color: var(--text2); transition: color 0.15s; }
+        .nav .links a:hover { color: var(--text); }
 
+        /* BUTTONS */
         .btn {
             display: inline-flex; align-items: center; gap: 8px;
-            padding: 12px 24px; border: none; border-radius: 8px;
+            padding: 12px 22px; border: none; border-radius: 10px;
             font-size: 14px; font-weight: 600; cursor: pointer;
-            transition: all 0.15s; text-transform: uppercase; letter-spacing: 1px;
-            text-decoration: none;
+            transition: all 0.15s; text-decoration: none;
+            font-family: inherit;
         }
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover { opacity: 0.9; transform: translateY(-1px); }
-        .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border); }
-        .btn-outline:hover { border-color: var(--text2); background: var(--surface2); }
-        .btn-sm { padding: 8px 16px; font-size: 12px; }
-
-        section { padding: 80px 32px; }
-        .container { max-width: 1100px; margin: 0 auto; }
+        .btn-primary { background: var(--accent); color: #052e16; }
+        .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 10px 30px rgba(74,222,128,0.25); }
+        .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2); }
+        .btn-outline:hover { border-color: var(--text2); background: var(--surface); }
+        .btn-sm { padding: 9px 16px; font-size: 13px; }
+        .btn-lg { padding: 14px 28px; font-size: 15px; }
 
         /* HERO */
         .hero {
-            padding: 100px 32px 80px;
+            position: relative;
+            min-height: 100vh;
+            padding: 140px 32px 80px;
+            display: flex; flex-direction: column;
+            justify-content: center; align-items: center;
             text-align: center;
+            overflow: hidden;
+        }
+        .hero-bg {
+            position: absolute; inset: 0;
             background:
-                radial-gradient(ellipse 80% 50% at 50% 0%, rgba(76,175,80,0.10), transparent 70%),
-                var(--bg);
+                radial-gradient(ellipse 60% 40% at 50% 30%, var(--accent-dim), transparent 60%),
+                radial-gradient(ellipse 80% 50% at 50% 100%, rgba(34,197,94,0.10), transparent 60%);
+            z-index: 0;
         }
-        .hero .eyebrow {
-            display: inline-block;
-            font-size: 11px; letter-spacing: 2px; text-transform: uppercase;
-            color: var(--accent);
-            background: rgba(76,175,80,0.10);
-            border: 1px solid rgba(76,175,80,0.30);
-            padding: 6px 14px; border-radius: 20px; margin-bottom: 24px;
+        .hero-grid {
+            position: absolute; inset: 0;
+            background-image:
+                linear-gradient(var(--border) 1px, transparent 1px),
+                linear-gradient(90deg, var(--border) 1px, transparent 1px);
+            background-size: 48px 48px;
+            mask-image: radial-gradient(ellipse 70% 50% at 50% 30%, #000, transparent 70%);
+            opacity: 0.4;
+            z-index: 0;
         }
-        .hero h2 {
-            font-size: 56px; font-weight: 700; line-height: 1.1;
-            letter-spacing: -1.5px; margin-bottom: 24px;
-            max-width: 900px; margin-left: auto; margin-right: auto;
+        .hero-content { position: relative; z-index: 1; max-width: 1100px; }
+        .hero-eyebrow {
+            display: inline-flex; align-items: center; gap: 8px;
+            font-family: var(--mono);
+            font-size: 12px; letter-spacing: 0; color: var(--accent);
+            background: var(--accent-dim);
+            border: 1px solid rgba(74,222,128,0.25);
+            padding: 6px 14px; border-radius: 100px;
+            margin-bottom: 28px;
         }
-        .hero h2 .accent { color: var(--accent); }
+        .hero-eyebrow .dot {
+            width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
+            box-shadow: 0 0 10px var(--accent);
+            animation: pulse 2s ease-in-out infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+        .hero h1 {
+            font-size: clamp(40px, 7vw, 88px);
+            font-weight: 800; letter-spacing: -3px; line-height: 1;
+            margin-bottom: 24px;
+        }
+        .hero h1 .grad {
+            background: linear-gradient(135deg, var(--accent), #86efac);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+        }
         .hero p.lead {
-            font-size: 19px; color: var(--text2);
-            max-width: 720px; margin: 0 auto 40px; line-height: 1.6;
+            font-size: clamp(16px, 1.6vw, 20px);
+            color: var(--text2);
+            max-width: 660px; margin: 0 auto 36px;
         }
-        .hero .cta { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+        .hero .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
         .hero .meta {
-            margin-top: 28px;
-            font-size: 12px; color: var(--text2);
-            display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;
+            margin-top: 32px;
+            display: flex; gap: 28px; justify-content: center; flex-wrap: wrap;
+            font-family: var(--mono); font-size: 12px; color: var(--text3);
         }
-        .hero .meta span::before {
-            content: "\2713  "; color: var(--accent); font-weight: 700;
+        .hero .meta span::before { content: "\2713  "; color: var(--accent); margin-right: 4px; }
+
+        .hero-video-wrap {
+            margin: 60px auto 0;
+            max-width: 1100px;
+            position: relative;
+            border-radius: 18px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            box-shadow: 0 60px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(74,222,128,0.1);
+            background: var(--surface);
         }
+        .hero-video-wrap::before {
+            content: "";
+            position: absolute; inset: -1px;
+            border-radius: 18px;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(74,222,128,0.4), transparent 50%, rgba(74,222,128,0.2));
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+            mask-composite: exclude;
+            pointer-events: none;
+        }
+        .hero-video {
+            width: 100%; display: block;
+            background: var(--bg);
+        }
+        .hero-video-controls {
+            position: absolute; bottom: 14px; right: 14px;
+            display: flex; gap: 8px;
+        }
+        .video-btn {
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+            border: 1px solid rgba(255,255,255,0.1);
+            color: var(--text); width: 36px; height: 36px;
+            border-radius: 50%; cursor: pointer;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 14px;
+        }
+        .video-btn:hover { background: rgba(0,0,0,0.8); }
 
         /* SECTIONS */
-        .section-eyebrow {
-            font-size: 12px; letter-spacing: 2px; text-transform: uppercase;
-            color: var(--accent); font-weight: 700;
-            text-align: center; margin-bottom: 14px;
+        section { padding: 120px 32px; position: relative; }
+        .container { max-width: 1200px; margin: 0 auto; }
+        .container-narrow { max-width: 900px; margin: 0 auto; }
+
+        .eyebrow {
+            display: inline-block;
+            font-family: var(--mono);
+            font-size: 12px; color: var(--accent);
+            background: var(--accent-dim);
+            padding: 4px 12px; border-radius: 6px;
+            margin-bottom: 18px;
         }
         .section-title {
-            font-size: 38px; font-weight: 700; letter-spacing: -0.5px;
-            text-align: center; margin-bottom: 16px;
+            font-size: clamp(32px, 4.5vw, 56px);
+            font-weight: 700; letter-spacing: -1.5px; line-height: 1.05;
+            margin-bottom: 18px;
         }
         .section-sub {
-            font-size: 17px; color: var(--text2);
-            text-align: center; max-width: 680px;
-            margin: 0 auto 56px;
+            font-size: 18px; color: var(--text2);
+            max-width: 660px;
+            margin-bottom: 56px;
         }
+        .center { text-align: center; }
+        .center .section-sub { margin-left: auto; margin-right: auto; }
 
-        /* PROBLEM */
-        .problem-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 24px;
+        /* REVEAL */
+        .reveal {
+            opacity: 0;
+            transform: translateY(24px);
+            transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .problem-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 32px;
+        .reveal.in {
+            opacity: 1;
+            transform: translateY(0);
         }
-        .problem-card h3 {
-            font-size: 18px; font-weight: 600; margin-bottom: 12px;
-            display: flex; align-items: center; gap: 10px;
+        .reveal-stagger > * {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: opacity 0.6s, transform 0.6s;
         }
-        .problem-card.before h3 { color: #ff7676; }
-        .problem-card.after h3 { color: var(--accent); }
-        .problem-card ul { list-style: none; padding: 0; }
-        .problem-card li {
-            padding: 8px 0; font-size: 14px; color: var(--text2);
-            border-bottom: 1px solid var(--border);
-        }
-        .problem-card li:last-child { border-bottom: none; }
-        .problem-card li::before {
-            content: "—  "; color: var(--text2);
-        }
-        .problem-card.after li::before { content: "\2713  "; color: var(--accent); }
+        .reveal-stagger.in > * { opacity: 1; transform: translateY(0); }
+        .reveal-stagger.in > *:nth-child(1) { transition-delay: 0.05s; }
+        .reveal-stagger.in > *:nth-child(2) { transition-delay: 0.15s; }
+        .reveal-stagger.in > *:nth-child(3) { transition-delay: 0.25s; }
+        .reveal-stagger.in > *:nth-child(4) { transition-delay: 0.35s; }
+        .reveal-stagger.in > *:nth-child(5) { transition-delay: 0.45s; }
+        .reveal-stagger.in > *:nth-child(6) { transition-delay: 0.55s; }
 
-        /* HOW IT WORKS */
-        .steps {
+        /* STATS */
+        .stats {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 16px;
-            counter-reset: step;
-        }
-        .step {
+            gap: 0;
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 28px 24px;
+            border-radius: 18px;
+            overflow: hidden;
+        }
+        .stat {
+            padding: 36px 28px;
+            border-right: 1px solid var(--border);
+            text-align: center;
+        }
+        .stat:last-child { border-right: none; }
+        .stat .num {
+            font-size: 52px; font-weight: 700; letter-spacing: -2px;
+            color: var(--accent);
+            font-variant-numeric: tabular-nums;
+            display: inline-block;
+        }
+        .stat .num .suffix { font-size: 30px; }
+        .stat .lbl { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
+
+        /* DEMO */
+        .demo-wrap {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 8px;
             position: relative;
         }
-        .step::before {
-            counter-increment: step;
-            content: "0" counter(step);
-            position: absolute; top: 18px; right: 22px;
-            font-size: 13px; font-weight: 700; color: var(--accent);
-            letter-spacing: 1px;
+        .demo-window {
+            background: var(--bg2);
+            border-radius: 14px;
+            overflow: hidden;
+            border: 1px solid var(--border);
         }
-        .step .step-icon { font-size: 32px; margin-bottom: 14px; }
-        .step h4 { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
-        .step p { font-size: 13px; color: var(--text2); line-height: 1.6; }
+        .demo-toolbar {
+            display: flex; align-items: center; gap: 12px;
+            padding: 10px 16px;
+            background: var(--surface2);
+            border-bottom: 1px solid var(--border);
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text3);
+        }
+        .demo-toolbar .traffic { display: flex; gap: 6px; }
+        .demo-toolbar .traffic span { width: 11px; height: 11px; border-radius: 50%; }
+        .demo-toolbar .traffic .r { background: #ff5f57; }
+        .demo-toolbar .traffic .y { background: #febc2e; }
+        .demo-toolbar .traffic .g { background: #28c840; }
+        .demo-toolbar .url {
+            flex: 1; text-align: center;
+            background: var(--surface);
+            border-radius: 6px;
+            padding: 4px 10px;
+        }
+        .demo-content {
+            position: relative;
+            min-height: 540px;
+            display: flex;
+            align-items: center; justify-content: center;
+        }
+        .demo-stage {
+            position: relative;
+            width: 100%;
+            height: 540px;
+            background:
+                linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 24px 24px,
+                linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 24px 24px,
+                var(--bg2);
+        }
+        .demo-stage svg { display: block; width: 100%; height: 100%; }
+        .demo-controls {
+            display: flex; gap: 10px; justify-content: center;
+            margin-top: 24px;
+        }
+        .demo-step {
+            display: flex; align-items: center; gap: 10px;
+            padding: 10px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 100px;
+            cursor: pointer;
+            font-size: 13px; color: var(--text2);
+            transition: all 0.2s;
+            font-family: var(--mono);
+        }
+        .demo-step:hover { color: var(--text); border-color: var(--border2); }
+        .demo-step.active {
+            background: var(--accent-dim);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+        .demo-step .num { font-weight: 700; opacity: 0.6; }
+
+        /* BEFORE/AFTER SLIDER */
+        .ba-wrap {
+            position: relative;
+            border-radius: 16px;
+            overflow: hidden;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            user-select: none;
+            cursor: ew-resize;
+            aspect-ratio: 16 / 9;
+        }
+        .ba-side { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; }
+        .ba-after-clip { clip-path: inset(0 0 0 var(--ba-pos, 50%)); }
+        .ba-before-clip { clip-path: inset(0 calc(100% - var(--ba-pos, 50%)) 0 0); }
+        .ba-handle {
+            position: absolute; top: 0; bottom: 0;
+            left: var(--ba-pos, 50%);
+            width: 2px;
+            background: var(--accent);
+            transform: translateX(-50%);
+            box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 30px var(--accent);
+            pointer-events: none;
+        }
+        .ba-handle::after {
+            content: "\2194";
+            position: absolute; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 44px; height: 44px;
+            background: var(--accent);
+            color: #052e16;
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: 700; font-size: 18px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        }
+        .ba-label {
+            position: absolute; top: 16px;
+            font-family: var(--mono); font-size: 11px;
+            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
+            color: var(--text); padding: 6px 12px;
+            border-radius: 6px;
+            letter-spacing: 1px; text-transform: uppercase;
+        }
+        .ba-label.left { left: 16px; }
+        .ba-label.right { right: 16px; color: var(--accent); }
 
         /* FEATURES */
         .features {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
+            gap: 16px;
         }
         .feature {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 28px;
-            transition: border-color 0.2s, transform 0.2s;
-        }
-        .feature:hover { border-color: var(--accent); transform: translateY(-2px); }
-        .feature .f-icon { font-size: 28px; margin-bottom: 14px; }
-        .feature h4 { font-size: 17px; font-weight: 600; margin-bottom: 10px; }
-        .feature p { font-size: 14px; color: var(--text2); line-height: 1.6; }
-
-        /* PLANT TYPES */
-        .types {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 20px;
-        }
-        .type-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
             border-radius: 14px;
-            padding: 32px 28px;
+            padding: 32px;
+            transition: border-color 0.2s, transform 0.2s, background 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .feature::before {
+            content: "";
+            position: absolute; inset: 0;
+            background: radial-gradient(ellipse 80% 50% at 0% 0%, var(--accent-dim), transparent 60%);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .feature:hover { border-color: rgba(74,222,128,0.4); transform: translateY(-3px); }
+        .feature:hover::before { opacity: 1; }
+        .feature > * { position: relative; }
+        .feature .ic {
+            width: 44px; height: 44px;
+            border-radius: 10px;
+            background: var(--accent-dim);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 20px; color: var(--accent);
+            margin-bottom: 18px;
+        }
+        .feature h4 { font-size: 17px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
+        .feature p { font-size: 14px; color: var(--text2); }
+
+        /* HOW IT WORKS - timeline */
+        .timeline {
+            position: relative;
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 24px;
+        }
+        .timeline::before {
+            content: "";
+            position: absolute;
+            top: 32px; left: 12%; right: 12%;
+            height: 2px;
+            background: linear-gradient(90deg, transparent, var(--accent), var(--accent), transparent);
+            opacity: 0.3;
+        }
+        .step {
+            position: relative;
             text-align: center;
         }
-        .type-card .t-icon { font-size: 48px; margin-bottom: 16px; }
-        .type-card h4 {
-            font-size: 18px; font-weight: 700; margin-bottom: 12px;
-            text-transform: uppercase; letter-spacing: 1px;
+        .step .step-num {
+            position: relative;
+            width: 64px; height: 64px;
+            border-radius: 50%;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            margin: 0 auto 20px;
+            display: flex; align-items: center; justify-content: center;
+            font-family: var(--mono);
+            font-size: 18px; font-weight: 700;
+            color: var(--accent);
+            z-index: 1;
         }
-        .type-card p { font-size: 14px; color: var(--text2); line-height: 1.6; }
-        .type-card .badge {
-            display: inline-block; margin-top: 14px;
-            font-size: 11px; letter-spacing: 1px; text-transform: uppercase;
-            color: var(--accent); background: rgba(76,175,80,0.10);
-            padding: 4px 10px; border-radius: 12px;
+        .step h4 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
+        .step p { font-size: 13px; color: var(--text2); }
+
+        /* GALLERY */
+        .gallery-controls {
+            display: flex; flex-wrap: wrap; gap: 10px;
+            justify-content: center;
+            margin-bottom: 32px;
+        }
+        .gallery-search {
+            position: relative;
+            width: 100%; max-width: 420px;
+        }
+        .gallery-search input {
+            width: 100%;
+            padding: 12px 18px 12px 44px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            color: var(--text);
+            font-family: inherit;
+            font-size: 14px;
+            transition: border-color 0.2s, background 0.2s;
+        }
+        .gallery-search input:focus { outline: none; border-color: var(--accent); background: var(--surface2); }
+        .gallery-search .ic {
+            position: absolute; left: 14px; top: 50%;
+            transform: translateY(-50%);
+            color: var(--text3);
+            font-size: 16px;
+        }
+        .gallery-meta {
+            font-family: var(--mono);
+            font-size: 12px;
+            color: var(--text3);
+            margin-bottom: 24px;
+            text-align: center;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 12px;
+        }
+        .specie {
+            position: relative;
+            aspect-ratio: 1;
+            border-radius: 10px;
+            overflow: hidden;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .specie:hover { transform: scale(1.04); border-color: var(--accent); z-index: 2; }
+        .specie img {
+            width: 100%; height: 100%;
+            object-fit: cover;
+            transition: transform 0.4s;
+        }
+        .specie:hover img { transform: scale(1.1); }
+        .specie .code {
+            position: absolute; bottom: 0; left: 0; right: 0;
+            padding: 8px 10px;
+            background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
+            font-family: var(--mono);
+            font-size: 11px; font-weight: 700;
+            color: #fff;
+            letter-spacing: 1px;
+        }
+        .gallery-load-more {
+            display: block;
+            margin: 32px auto 0;
+        }
+
+        /* LIGHTBOX */
+        .lightbox {
+            position: fixed; inset: 0;
+            background: rgba(0,0,0,0.92);
+            backdrop-filter: blur(20px);
+            display: none;
+            align-items: center; justify-content: center;
+            z-index: 1000;
+            padding: 32px;
+        }
+        .lightbox.open { display: flex; animation: fadeIn 0.2s; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .lightbox-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            max-width: 720px; width: 100%;
+            display: grid; grid-template-columns: 1fr 1fr;
+            overflow: hidden;
+        }
+        .lightbox-img {
+            background: #000;
+            display: flex; align-items: center; justify-content: center;
+            min-height: 360px;
+        }
+        .lightbox-img img { width: 100%; height: 100%; object-fit: cover; max-height: 480px; }
+        .lightbox-info { padding: 32px; }
+        .lightbox-info .code {
+            font-family: var(--mono);
+            font-size: 12px; color: var(--accent);
+            letter-spacing: 2px; margin-bottom: 8px;
+        }
+        .lightbox-info h3 { font-size: 22px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
+        .lightbox-info .sci { font-style: italic; color: var(--text2); font-size: 14px; margin-bottom: 24px; }
+        .lightbox-info .row { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--border); font-size: 13px; }
+        .lightbox-info .row .k { color: var(--text3); }
+        .lightbox-close {
+            position: absolute; top: 24px; right: 24px;
+            width: 44px; height: 44px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 50%;
+            color: var(--text); cursor: pointer;
+            font-size: 20px;
         }
 
         /* OUTPUTS */
         .outputs {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 24px;
+            gap: 20px;
         }
-        .output-card {
+        .out {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 14px;
-            padding: 36px;
+            border-radius: 16px;
+            padding: 32px;
+            position: relative;
+            overflow: hidden;
         }
-        .output-card .o-icon { font-size: 44px; margin-bottom: 16px; }
-        .output-card h4 { font-size: 22px; font-weight: 700; margin-bottom: 12px; }
-        .output-card .html-title { color: #2196F3; }
-        .output-card .pdf-title { color: #FF9800; }
-        .output-card p { font-size: 15px; color: var(--text2); line-height: 1.7; margin-bottom: 18px; }
-        .output-card ul { list-style: none; padding: 0; }
-        .output-card li {
+        .out h4 { font-size: 22px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.3px; display: flex; align-items: center; gap: 12px; }
+        .out h4 .icon { font-size: 26px; }
+        .out p { font-size: 14px; color: var(--text2); margin-bottom: 22px; }
+        .out ul { list-style: none; }
+        .out li {
             font-size: 13px; color: var(--text2);
-            padding: 6px 0; padding-left: 22px; position: relative;
+            padding: 8px 0;
+            border-top: 1px solid var(--border);
+            display: flex; align-items: center; gap: 10px;
         }
-        .output-card li::before {
-            content: "\2192"; position: absolute; left: 0;
-            color: var(--accent); font-weight: 700;
-        }
+        .out li::before { content: "\2192"; color: var(--accent); font-weight: 700; }
+        .out.html h4 .icon { color: #60A5FA; }
+        .out.pdf h4 .icon { color: #FB923C; }
 
         /* FAQ */
-        .faq { max-width: 820px; margin: 0 auto; }
         .faq details {
             background: var(--surface);
             border: 1px solid var(--border);
-            border-radius: 10px;
-            margin-bottom: 12px;
-            padding: 0;
+            border-radius: 12px;
+            margin-bottom: 10px;
             overflow: hidden;
         }
         .faq summary {
             cursor: pointer;
-            padding: 20px 24px;
+            padding: 22px 26px;
             font-size: 15px; font-weight: 600;
             list-style: none;
             display: flex; justify-content: space-between; align-items: center;
         }
         .faq summary::-webkit-details-marker { display: none; }
-        .faq summary::after {
-            content: "+"; color: var(--accent); font-size: 24px; font-weight: 300;
-            transition: transform 0.2s;
-        }
+        .faq summary::after { content: "+"; color: var(--accent); font-size: 24px; transition: transform 0.2s; }
         .faq details[open] summary::after { transform: rotate(45deg); }
-        .faq details p {
-            padding: 0 24px 22px; font-size: 14px;
-            color: var(--text2); line-height: 1.7;
-        }
+        .faq details p { padding: 0 26px 24px; font-size: 14px; color: var(--text2); }
 
         /* CTA FINAL */
         .cta-final {
             background:
-                radial-gradient(ellipse 60% 80% at 50% 100%, rgba(76,175,80,0.12), transparent 70%),
+                radial-gradient(ellipse 60% 80% at 50% 100%, var(--accent-dim), transparent 70%),
                 var(--surface);
             border-top: 1px solid var(--border);
             border-bottom: 1px solid var(--border);
             text-align: center;
         }
-        .cta-final h2 { font-size: 40px; letter-spacing: -0.5px; margin-bottom: 16px; }
-        .cta-final p { font-size: 17px; color: var(--text2); margin-bottom: 32px; }
 
-        /* FOOTER */
         footer {
-            padding: 32px;
+            padding: 36px 32px;
             border-top: 1px solid var(--border);
-            text-align: center;
-            font-size: 12px;
-            color: var(--text2);
-            letter-spacing: 1px;
+            display: flex; justify-content: space-between; align-items: center;
+            flex-wrap: wrap; gap: 16px;
+            font-family: var(--mono); font-size: 12px; color: var(--text3);
         }
+        footer a:hover { color: var(--text); }
 
         @media (max-width: 900px) {
-            section { padding: 56px 20px; }
-            .hero { padding: 60px 20px 50px; }
-            .hero h2 { font-size: 36px; }
-            .hero p.lead { font-size: 16px; }
-            .section-title { font-size: 28px; }
-            .problem-grid, .outputs { grid-template-columns: 1fr; }
-            .steps { grid-template-columns: 1fr 1fr; }
-            .features, .types { grid-template-columns: 1fr; }
-            .header { padding: 14px 20px; }
-            .header nav { gap: 14px; }
-            .header nav a:not(.btn) { display: none; }
+            section { padding: 80px 20px; }
+            .hero { padding: 100px 20px 60px; min-height: auto; }
+            .nav { padding: 12px 20px; }
+            .nav .links a:not(.btn) { display: none; }
+            .stats { grid-template-columns: 1fr 1fr; }
+            .stat:nth-child(2) { border-right: none; }
+            .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 1px solid var(--border); }
+            .timeline { grid-template-columns: 1fr; gap: 32px; }
+            .timeline::before { display: none; }
+            .features, .outputs { grid-template-columns: 1fr; }
+            .lightbox-card { grid-template-columns: 1fr; }
+            .demo-stage { height: 380px; }
         }
     </style>
 </head>
 <body>
-    <header class="header">
-        <h1>Mapa de Vegetacao</h1>
-        <nav>
-            <a href="#como-funciona">Como funciona</a>
-            <a href="#recursos">Recursos</a>
-            <a href="#tipos">Tipos</a>
+    <nav class="nav" id="nav">
+        <a href="#top" class="brand">
+            <span class="mark">&#127794;</span>
+            <span>Mapa de Vegetacao</span>
+        </a>
+        <div class="links">
+            <a href="#demo">Demo</a>
+            <a href="#funciona">Como funciona</a>
+            <a href="#especies">Especies</a>
+            <a href="#entregaveis">Entregaveis</a>
             <a href="#faq">FAQ</a>
             <a href="/app" class="btn btn-primary btn-sm">Abrir App</a>
-        </nav>
-    </header>
+        </div>
+    </nav>
 
     <!-- HERO -->
-    <section class="hero">
-        <span class="eyebrow">Paisagismo Tecnico</span>
-        <h2>Do PDF do projeto a um <span class="accent">mapa interativo</span> com legenda completa de especies</h2>
-        <p class="lead">
-            Envie o PDF do projeto de paisagismo. O sistema identifica e posiciona automaticamente
-            cada planta no mapa, gera contagem por especie e entrega visualizacoes prontas para
-            apresentacao executiva e documentacao tecnica &mdash; sem trabalho manual.
-        </p>
-        <div class="cta">
-            <a href="/app" class="btn btn-primary">Abrir o App</a>
-            <a href="#como-funciona" class="btn btn-outline">Ver como funciona</a>
+    <header class="hero" id="top">
+        <div class="hero-grid"></div>
+        <div class="hero-bg"></div>
+        <div class="hero-content">
+            <span class="hero-eyebrow"><span class="dot"></span>Paisagismo Tecnico &middot; v1.0</span>
+            <h1>Do PDF do projeto<br><span class="grad">ao mapa interativo.</span></h1>
+            <p class="lead">Envie o PDF de paisagismo. O sistema identifica e posiciona cada planta, gera contagem por especie e entrega um mapa interativo com apresentacao executiva. Em minutos.</p>
+            <div class="cta">
+                <a href="/app" class="btn btn-primary btn-lg">Abrir o App &nbsp;&rarr;</a>
+                <a href="#demo" class="btn btn-outline btn-lg">Ver demo</a>
+            </div>
+            <div class="meta">
+                <span>Sem instalacao</span>
+                <span>326 especies catalogadas</span>
+                <span>Exporta HTML, PNG e PDF</span>
+            </div>
         </div>
-        <div class="meta">
-            <span>Sem instalacao</span>
-            <span>Funciona no navegador</span>
-            <span>Exporta HTML, PNG e PDF</span>
+
+        <div class="hero-video-wrap reveal">
+            <video class="hero-video" id="heroVideo" autoplay muted loop playsinline preload="metadata">
+                <source src="/promo.mp4" type="video/mp4">
+            </video>
+            <div class="hero-video-controls">
+                <button class="video-btn" id="muteBtn" title="Som">&#128263;</button>
+                <button class="video-btn" id="playBtn" title="Pausar">&#9208;</button>
+            </div>
+        </div>
+    </header>
+
+    <!-- STATS -->
+    <section style="padding-top: 0;">
+        <div class="container reveal">
+            <div class="stats">
+                <div class="stat"><span class="num" data-count="326"><span class="val">0</span></span><div class="lbl">Especies catalogadas</div></div>
+                <div class="stat"><span class="num" data-count="3"><span class="val">0</span></span><div class="lbl">Tipos de vegetacao</div></div>
+                <div class="stat"><span class="num" data-count="60"><span class="val">0</span><span class="suffix">s</span></span><div class="lbl">Tempo de processamento</div></div>
+                <div class="stat"><span class="num" data-count="3"><span class="val">0</span><span class="suffix"> formatos</span></span><div class="lbl">HTML &middot; PNG &middot; PDF</div></div>
+            </div>
         </div>
     </section>
 
-    <!-- PROBLEM -->
-    <section>
+    <!-- INTERACTIVE DEMO -->
+    <section id="demo">
         <div class="container">
-            <div class="section-eyebrow">O Problema</div>
-            <h2 class="section-title">Legendas e mapas de paisagismo consomem horas</h2>
-            <p class="section-sub">
-                Preparar a documentacao visual de um projeto de paisagismo costuma exigir contagem
-                manual, pranchas refeitas e apresentacoes montadas a mao em editores de imagem.
-            </p>
-            <div class="problem-grid">
-                <div class="problem-card before">
-                    <h3>Antes</h3>
-                    <ul>
-                        <li>Contagem manual de cada planta no PDF</li>
-                        <li>Legenda construida no Excel ou InDesign</li>
-                        <li>Apresentacoes montadas slide a slide</li>
-                        <li>Mapas reformatados a cada revisao do projeto</li>
-                        <li>Risco alto de erro de contagem por especie</li>
-                    </ul>
+            <div class="center reveal">
+                <span class="eyebrow">// demo interativo</span>
+                <h2 class="section-title">Veja o processo em camera lenta</h2>
+                <p class="section-sub">Clique em cada etapa para visualizar. O fluxo completo no app leva menos de um minuto.</p>
+            </div>
+            <div class="reveal">
+                <div class="demo-wrap">
+                    <div class="demo-window">
+                        <div class="demo-toolbar">
+                            <div class="traffic"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                            <div class="url" id="demoUrl">mapa-vegetacao.app/processar</div>
+                        </div>
+                        <div class="demo-content">
+                            <div class="demo-stage" id="demoStage"></div>
+                        </div>
+                    </div>
                 </div>
-                <div class="problem-card after">
-                    <h3>Com o Mapa de Vegetacao</h3>
-                    <ul>
-                        <li>Upload do PDF e processamento automatico</li>
-                        <li>Cada planta identificada e posicionada no mapa</li>
-                        <li>Contagem por especie gerada automaticamente</li>
-                        <li>HTML interativo e PDF executivo prontos para entrega</li>
-                        <li>Reprocesse a nova versao do PDF a qualquer momento</li>
-                    </ul>
+                <div class="demo-controls">
+                    <button class="demo-step active" data-step="upload"><span class="num">01</span> Upload</button>
+                    <button class="demo-step" data-step="parse"><span class="num">02</span> Identificar</button>
+                    <button class="demo-step" data-step="map"><span class="num">03</span> Mapear</button>
+                    <button class="demo-step" data-step="export"><span class="num">04</span> Exportar</button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- BEFORE / AFTER -->
+    <section id="comparacao" style="background: var(--bg2);">
+        <div class="container">
+            <div class="center reveal">
+                <span class="eyebrow">// antes &middot; depois</span>
+                <h2 class="section-title">Arraste para comparar</h2>
+                <p class="section-sub">A esquerda, um trecho da prancha tecnica original. A direita, o mesmo trecho ja processado pelo Mapa de Vegetacao.</p>
+            </div>
+            <div class="reveal">
+                <div class="ba-wrap" id="baWrap">
+                    <div class="ba-side ba-before-clip">
+                        <svg viewBox="0 0 1200 675" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
+                            <rect width="1200" height="675" fill="#fafafa"/>
+                            <g stroke="#999" stroke-width="0.5" fill="none">
+                                <pattern id="bg-grid" width="30" height="30" patternUnits="userSpaceOnUse">
+                                    <path d="M 30 0 L 0 0 0 30" />
+                                </pattern>
+                                <rect width="1200" height="675" fill="url(#bg-grid)" opacity="0.4"/>
+                            </g>
+                            <g stroke="#222" stroke-width="2" fill="none">
+                                <path d="M 100 100 L 1100 100 L 1100 575 L 100 575 Z"/>
+                                <path d="M 100 250 L 1100 250" stroke-dasharray="4 4"/>
+                                <path d="M 600 100 L 600 575" stroke-dasharray="4 4"/>
+                            </g>
+                            <g font-family="monospace" font-size="9" fill="#666">
+                                <text x="120" y="92">EIXO A</text>
+                                <text x="620" y="92">EIXO B</text>
+                                <text x="120" y="246">N+0.00</text>
+                                <text x="120" y="595">CALCADA</text>
+                            </g>
+                            <g font-family="monospace" font-size="8" fill="#222">
+                                <text x="200" y="180">QUA</text><text x="280" y="220">QUA</text><text x="350" y="170">CER</text>
+                                <text x="450" y="200">IPE</text><text x="540" y="240">IPE</text><text x="640" y="180">PAU</text>
+                                <text x="720" y="220">PAU</text><text x="820" y="170">JAB</text><text x="900" y="220">FIC</text>
+                                <text x="970" y="180">PAL</text><text x="200" y="380">PAL</text><text x="320" y="420">QUA</text>
+                                <text x="450" y="380">CER</text><text x="580" y="420">PAU</text><text x="700" y="380">JAB</text>
+                                <text x="820" y="420">FIC</text><text x="940" y="380">IPE</text>
+                                <text x="200" y="500">arb</text><text x="320" y="510">arb</text><text x="450" y="500">arb</text>
+                                <text x="580" y="510">arb</text><text x="700" y="500">arb</text><text x="820" y="510">arb</text>
+                            </g>
+                            <g font-family="monospace" font-size="7" fill="#888">
+                                <text x="120" y="640">PROJETO PAISAGISMO &middot; PRANCHA 04 &middot; ESC 1:200 &middot; R00 &middot; 03/2026</text>
+                            </g>
+                        </svg>
+                    </div>
+                    <div class="ba-side ba-after-clip">
+                        <svg viewBox="0 0 1200 675" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="background: #0d0d0d;">
+                            <pattern id="bg-grid2" width="30" height="30" patternUnits="userSpaceOnUse">
+                                <path d="M 30 0 L 0 0 0 30" stroke="#1f1f1f" stroke-width="0.5" fill="none"/>
+                            </pattern>
+                            <rect width="1200" height="675" fill="url(#bg-grid2)"/>
+                            <g stroke="#333" stroke-width="1" fill="none">
+                                <path d="M 100 100 L 1100 100 L 1100 575 L 100 575 Z"/>
+                            </g>
+                            <!-- Processed dots -->
+                            <g id="afterDots"></g>
+                            <g font-family="JetBrains Mono, monospace" font-size="11" fill="#4ADE80">
+                                <text x="120" y="640">// MAPA DE VEGETACAO &middot; 18 ESPECIES &middot; 156 ITENS DETECTADOS</text>
+                            </g>
+                        </svg>
+                    </div>
+                    <div class="ba-handle"></div>
+                    <div class="ba-label left">Prancha original</div>
+                    <div class="ba-label right">Mapa gerado</div>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- HOW IT WORKS -->
-    <section id="como-funciona" style="background: var(--surface);">
+    <section id="funciona">
         <div class="container">
-            <div class="section-eyebrow">Como funciona</div>
-            <h2 class="section-title">Quatro passos &mdash; do PDF ao entregavel final</h2>
-            <p class="section-sub">
-                Pensado para arquitetos paisagistas, agronomos e equipes de obra que precisam
-                gerar visualizacoes consistentes a partir do projeto original.
-            </p>
-            <div class="steps">
+            <div class="center reveal">
+                <span class="eyebrow">// como funciona</span>
+                <h2 class="section-title">Quatro passos. Sem manual.</h2>
+                <p class="section-sub">Pensado para arquitetos paisagistas, agronomos e equipes de obra.</p>
+            </div>
+            <div class="timeline reveal-stagger">
                 <div class="step">
-                    <div class="step-icon">&#128196;</div>
+                    <div class="step-num">01</div>
                     <h4>Envie o PDF</h4>
-                    <p>Arraste o arquivo do projeto de paisagismo para a area de upload, direto no navegador.</p>
+                    <p>Arraste o arquivo do projeto direto na area de upload do navegador.</p>
                 </div>
                 <div class="step">
-                    <div class="step-icon">&#127794;</div>
-                    <h4>Escolha os tipos</h4>
-                    <p>Selecione arvores, arbustos e/ou forracoes &mdash; em qualquer combinacao.</p>
+                    <div class="step-num">02</div>
+                    <h4>Selecione tipos</h4>
+                    <p>Arvores, arbustos, forracoes &mdash; um, dois ou os tres.</p>
                 </div>
                 <div class="step">
-                    <div class="step-icon">&#128270;</div>
-                    <h4>Processamento automatico</h4>
-                    <p>O sistema identifica especies, conta itens e posiciona cada planta no mapa.</p>
+                    <div class="step-num">03</div>
+                    <h4>Processamento</h4>
+                    <p>Identificacao, contagem e posicionamento automatico no mapa.</p>
                 </div>
                 <div class="step">
-                    <div class="step-icon">&#128229;</div>
-                    <h4>Baixe o resultado</h4>
-                    <p>HTML interativo, mapa em PNG e apresentacao executiva em PDF prontos para entrega.</p>
+                    <div class="step-num">04</div>
+                    <h4>Exporte</h4>
+                    <p>HTML interativo, PNG do mapa ou apresentacao executiva em PDF.</p>
                 </div>
             </div>
         </div>
     </section>
 
     <!-- FEATURES -->
-    <section id="recursos">
+    <section style="background: var(--bg2);">
         <div class="container">
-            <div class="section-eyebrow">Recursos</div>
-            <h2 class="section-title">O que esta incluso</h2>
-            <p class="section-sub">
-                Todos os recursos disponiveis ao processar um PDF de paisagismo, sem etapas extras.
-            </p>
-            <div class="features">
+            <div class="center reveal">
+                <span class="eyebrow">// recursos</span>
+                <h2 class="section-title">Tudo o que esta incluso</h2>
+                <p class="section-sub">Nenhum passo extra. Tudo o que voce ve abaixo acontece em uma unica execucao.</p>
+            </div>
+            <div class="features reveal-stagger">
                 <div class="feature">
-                    <div class="f-icon">&#128205;</div>
+                    <div class="ic">&#128205;</div>
                     <h4>Posicionamento automatico</h4>
                     <p>Cada planta marcada no PDF original e identificada e posicionada com precisao no mapa de saida.</p>
                 </div>
                 <div class="feature">
-                    <div class="f-icon">&#127912;</div>
+                    <div class="ic">&#127912;</div>
                     <h4>Cores por especie</h4>
                     <p>Paleta consistente que diferencia cada especie no mapa, com legenda alinhada automaticamente.</p>
                 </div>
                 <div class="feature">
-                    <div class="f-icon">&#128290;</div>
+                    <div class="ic">&#128290;</div>
                     <h4>Contagem por tipo</h4>
-                    <p>Total de itens por especie e total geral por tipo (arvores, arbustos, forracoes), tudo calculado.</p>
+                    <p>Total por especie e total geral por tipo (arvores, arbustos, forracoes), tudo calculado.</p>
                 </div>
                 <div class="feature">
-                    <div class="f-icon">&#128247;</div>
+                    <div class="ic">&#128247;</div>
                     <h4>Tooltips com fotos</h4>
-                    <p>No HTML interativo, passar o mouse sobre cada planta exibe a foto, o nome popular e cientifico.</p>
+                    <p>No HTML interativo, passar o mouse sobre cada planta exibe foto, nome popular e cientifico.</p>
                 </div>
                 <div class="feature">
-                    <div class="f-icon">&#128218;</div>
+                    <div class="ic">&#128218;</div>
                     <h4>Apresentacao executiva</h4>
                     <p>PDF com capa, slides individuais por especie, mapa destacado e dados consolidados.</p>
                 </div>
                 <div class="feature">
-                    <div class="f-icon">&#128187;</div>
-                    <h4>Tudo no navegador</h4>
-                    <p>Sem instalacao. O processamento acontece online e o download e imediato em PNG ou PDF.</p>
+                    <div class="ic">&#9889;</div>
+                    <h4>Sem instalacao</h4>
+                    <p>Tudo no navegador. Processamento online com download imediato em PNG ou PDF.</p>
                 </div>
             </div>
         </div>
     </section>
 
-    <!-- PLANT TYPES -->
-    <section id="tipos" style="background: var(--surface);">
+    <!-- SPECIES GALLERY -->
+    <section id="especies">
         <div class="container">
-            <div class="section-eyebrow">Tipos de vegetacao</div>
-            <h2 class="section-title">Tres categorias, cada uma com sua representacao visual</h2>
-            <p class="section-sub">
-                Voce pode escolher um tipo isolado ou combinar varios na mesma execucao.
-            </p>
-            <div class="types">
-                <div class="type-card">
-                    <div class="t-icon">&#127794;</div>
-                    <h4>Arvores</h4>
-                    <p>Circulos coloridos marcam cada arvore no mapa, com contagem detalhada por especie na legenda.</p>
-                    <span class="badge">Marcador circular</span>
-                </div>
-                <div class="type-card">
-                    <div class="t-icon">&#127807;</div>
-                    <h4>Arbustos</h4>
-                    <p>Circulos tracejados indicam cada arbusto, agrupados por especie com total por tipo.</p>
-                    <span class="badge">Marcador tracejado</span>
-                </div>
-                <div class="type-card">
-                    <div class="t-icon">&#127811;</div>
-                    <h4>Forracoes</h4>
-                    <p>Areas coloridas preenchem as regioes de cada forracao conforme o plano original.</p>
-                    <span class="badge">Area preenchida</span>
+            <div class="center reveal">
+                <span class="eyebrow">// banco de especies</span>
+                <h2 class="section-title">326 especies catalogadas</h2>
+                <p class="section-sub">Banco proprio de fotos e dados taxonomicos cobre arvores nativas e exoticas, palmeiras, frutiferas, arbustos, forracoes, aquaticas e materiais de paisagismo.</p>
+            </div>
+            <div class="gallery-controls reveal">
+                <div class="gallery-search">
+                    <span class="ic">&#128269;</span>
+                    <input type="text" id="gallerySearch" placeholder="Buscar por codigo (ex: ABGR, TIGR, IPRO)...">
                 </div>
             </div>
+            <div class="gallery-meta" id="galleryMeta">Carregando...</div>
+            <div class="gallery-grid" id="galleryGrid"></div>
+            <button class="btn btn-outline gallery-load-more" id="loadMoreBtn">Carregar mais</button>
         </div>
     </section>
 
     <!-- OUTPUTS -->
-    <section>
+    <section id="entregaveis" style="background: var(--bg2);">
         <div class="container">
-            <div class="section-eyebrow">Entregaveis</div>
-            <h2 class="section-title">Dois formatos prontos para entrega</h2>
-            <p class="section-sub">
-                Apos o processamento, o resultado pode ser exportado em dois formatos profissionais.
-            </p>
-            <div class="outputs">
-                <div class="output-card">
-                    <div class="o-icon">&#127760;</div>
-                    <h4 class="html-title">HTML Interativo</h4>
-                    <p>Pagina web autocontida com o mapa do projeto, especies posicionadas e tooltips ricos.</p>
+            <div class="center reveal">
+                <span class="eyebrow">// entregaveis</span>
+                <h2 class="section-title">Dois formatos. Pronto para entrega.</h2>
+                <p class="section-sub">O resultado pode ser exportado nos dois formatos &mdash; cliente e equipe interna ficam servidos no mesmo processamento.</p>
+            </div>
+            <div class="outputs reveal-stagger">
+                <div class="out html">
+                    <h4><span class="icon">&#127760;</span> HTML Interativo</h4>
+                    <p>Pagina web autocontida com mapa, tooltips e legenda. Funciona offline depois de baixada.</p>
                     <ul>
                         <li>Especies posicionadas sobre o mapa original</li>
-                        <li>Tooltip com foto e nome cientifico ao passar o mouse</li>
+                        <li>Tooltip com foto e nome cientifico</li>
                         <li>Legenda por tipo, com cores e contagem</li>
                         <li>Funciona offline depois do download</li>
                     </ul>
                 </div>
-                <div class="output-card">
-                    <div class="o-icon">&#128218;</div>
-                    <h4 class="pdf-title">Apresentacao PDF</h4>
-                    <p>Documento executivo pronto para reunioes de obra, aprovacao de cliente ou entrega tecnica.</p>
+                <div class="out pdf">
+                    <h4><span class="icon">&#128218;</span> Apresentacao PDF</h4>
+                    <p>Documento executivo pronto para reuniao de obra, aprovacao de cliente ou entrega tecnica.</p>
                     <ul>
                         <li>Capa executiva e dados consolidados</li>
                         <li>Slide individual por especie com foto</li>
@@ -518,19 +939,20 @@
     </section>
 
     <!-- FAQ -->
-    <section id="faq" style="background: var(--surface);">
-        <div class="container">
-            <div class="section-eyebrow">FAQ</div>
-            <h2 class="section-title">Perguntas frequentes</h2>
-            <p class="section-sub">Duvidas comuns antes do primeiro uso.</p>
-            <div class="faq">
+    <section id="faq">
+        <div class="container-narrow">
+            <div class="center reveal">
+                <span class="eyebrow">// faq</span>
+                <h2 class="section-title">Perguntas frequentes</h2>
+            </div>
+            <div class="faq reveal">
                 <details>
                     <summary>Que tipo de PDF posso enviar?</summary>
-                    <p>PDFs de projetos de paisagismo com pranchas tecnicas que indicam o posicionamento e a especie de cada planta. Quanto mais limpo o desenho original, mais preciso o resultado.</p>
+                    <p>PDFs de projetos de paisagismo com pranchas tecnicas indicando posicionamento e especie de cada planta. Quanto mais limpo o desenho original, mais preciso o resultado.</p>
                 </details>
                 <details>
                     <summary>Preciso instalar alguma coisa?</summary>
-                    <p>Nao. Tudo acontece direto no navegador. Basta abrir o app, arrastar o PDF e escolher os tipos de vegetacao a processar.</p>
+                    <p>Nao. Tudo direto no navegador. Abra o app, arraste o PDF e escolha os tipos a processar.</p>
                 </details>
                 <details>
                     <summary>Posso processar arvores, arbustos e forracoes ao mesmo tempo?</summary>
@@ -541,12 +963,12 @@
                     <p>Capa executiva, dados consolidados de contagem, slide individual por especie com foto e nome cientifico, e o mapa destacado com a vegetacao posicionada.</p>
                 </details>
                 <details>
-                    <summary>Posso reprocessar uma versao revisada do projeto?</summary>
-                    <p>Sim. Sempre que o PDF do projeto for atualizado, basta voltar ao app, enviar a nova versao e gerar os entregaveis novamente.</p>
+                    <summary>Como funciona o banco de especies?</summary>
+                    <p>O sistema mantem uma base propria com 326 especies (codigos, nomes populares e cientificos, origem, insolacao, foto). Ele cruza os codigos do PDF com essa base automaticamente.</p>
                 </details>
                 <details>
-                    <summary>Os arquivos ficam armazenados?</summary>
-                    <p>O processamento acontece sob demanda, apenas para gerar o resultado solicitado. Voce baixa os entregaveis assim que ficam prontos.</p>
+                    <summary>Posso reprocessar uma versao revisada?</summary>
+                    <p>Sim. Sempre que o PDF for atualizado, basta voltar ao app, enviar a nova versao e gerar os entregaveis novamente.</p>
                 </details>
             </div>
         </div>
@@ -554,15 +976,375 @@
 
     <!-- CTA FINAL -->
     <section class="cta-final">
-        <div class="container">
-            <h2>Pronto para gerar seu primeiro mapa?</h2>
-            <p>Abra o app, envie o PDF do projeto e receba os entregaveis em minutos.</p>
-            <a href="/app" class="btn btn-primary">Abrir o App</a>
+        <div class="container-narrow reveal">
+            <h2 class="section-title">Pronto para gerar seu primeiro mapa?</h2>
+            <p class="section-sub center" style="margin-bottom: 32px;">Abra o app, envie o PDF do projeto e receba os entregaveis em minutos.</p>
+            <a href="/app" class="btn btn-primary btn-lg">Abrir o App &nbsp;&rarr;</a>
         </div>
     </section>
 
     <footer>
-        Mapa de Vegetacao &middot; Paisagismo Tecnico
+        <div>// Mapa de Vegetacao &middot; Paisagismo Tecnico</div>
+        <div><a href="/app">Abrir App</a> &nbsp;&middot;&nbsp; <a href="#top">Topo</a></div>
     </footer>
+
+    <!-- LIGHTBOX -->
+    <div class="lightbox" id="lightbox">
+        <button class="lightbox-close" id="lightboxClose">&times;</button>
+        <div class="lightbox-card">
+            <div class="lightbox-img"><img id="lightboxImg" src="" alt=""></div>
+            <div class="lightbox-info">
+                <div class="code" id="lightboxCode"></div>
+                <h3 id="lightboxName">&mdash;</h3>
+                <div class="sci" id="lightboxSci">&mdash;</div>
+                <div class="row"><span class="k">Tipo</span><span id="lightboxType">&mdash;</span></div>
+                <div class="row"><span class="k">Origem</span><span id="lightboxOrigin">&mdash;</span></div>
+                <div class="row"><span class="k">Insolacao</span><span id="lightboxSun">&mdash;</span></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    (function() {
+        // ---------- NAV SCROLL ----------
+        const nav = document.getElementById('nav');
+        window.addEventListener('scroll', () => {
+            nav.classList.toggle('scrolled', window.scrollY > 20);
+        });
+
+        // ---------- VIDEO CONTROLS ----------
+        const video = document.getElementById('heroVideo');
+        const muteBtn = document.getElementById('muteBtn');
+        const playBtn = document.getElementById('playBtn');
+        muteBtn.addEventListener('click', () => {
+            video.muted = !video.muted;
+            muteBtn.innerHTML = video.muted ? '&#128263;' : '&#128266;';
+        });
+        playBtn.addEventListener('click', () => {
+            if (video.paused) { video.play(); playBtn.innerHTML = '&#9208;'; }
+            else { video.pause(); playBtn.innerHTML = '&#9654;'; }
+        });
+
+        // ---------- REVEAL ON SCROLL ----------
+        const io = new IntersectionObserver((entries) => {
+            entries.forEach(e => { if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); } });
+        }, { threshold: 0.12 });
+        document.querySelectorAll('.reveal, .reveal-stagger').forEach(el => io.observe(el));
+
+        // ---------- ANIMATED COUNTERS ----------
+        const counterIO = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (!e.isIntersecting) return;
+                const el = e.target;
+                const target = parseInt(el.dataset.count, 10);
+                const dur = 1400;
+                const start = performance.now();
+                const valEl = el.querySelector('.val') || el;
+                const tick = (now) => {
+                    const t = Math.min(1, (now - start) / dur);
+                    const eased = 1 - Math.pow(1 - t, 3);
+                    const v = Math.floor(target * eased);
+                    valEl.textContent = v;
+                    if (t < 1) requestAnimationFrame(tick);
+                    else valEl.textContent = target;
+                };
+                requestAnimationFrame(tick);
+                counterIO.unobserve(el);
+            });
+        }, { threshold: 0.5 });
+        document.querySelectorAll('[data-count]').forEach(el => counterIO.observe(el));
+
+        // ---------- DEMO ----------
+        const demoStage = document.getElementById('demoStage');
+        const demoUrl = document.getElementById('demoUrl');
+        const demoSteps = document.querySelectorAll('.demo-step');
+        const PALETTE = ['#E91E63','#4CAF50','#2196F3','#FF9800','#9C27B0','#00BCD4','#F44336','#8BC34A','#3F51B5','#FFEB3B','#795548','#607D8B','#FF5722','#009688','#673AB7'];
+        const seedRand = (s) => { let x = Math.sin(s) * 10000; return x - Math.floor(x); };
+        const dots = Array.from({length: 64}, (_, i) => ({
+            x: 80 + seedRand(i+1) * (window.innerWidth > 700 ? 900 : 580),
+            y: 60 + seedRand(i*7) * 380,
+            color: PALETTE[i % PALETTE.length],
+            r: 5 + seedRand(i*3) * 4,
+        }));
+        const demoStates = {
+            upload: () => `
+                <svg viewBox="0 0 1000 540" width="100%" height="100%">
+                    <g class="upload-anim">
+                        <rect x="350" y="180" width="300" height="180" rx="14" fill="none" stroke="#262626" stroke-width="2" stroke-dasharray="8 6"/>
+                        <g transform="translate(500 260)">
+                            <text text-anchor="middle" fill="#666" font-size="42" dy="-18">&#128229;</text>
+                            <text text-anchor="middle" fill="#999" font-family="JetBrains Mono, monospace" font-size="11" dy="32">arraste o PDF aqui</text>
+                        </g>
+                        <g transform="translate(500 460)" opacity="0.9">
+                            <rect x="-110" y="-22" width="220" height="44" rx="10" fill="#fafafa">
+                                <animate attributeName="y" values="-280;-22" dur="2.4s" repeatCount="indefinite"/>
+                            </rect>
+                            <g style="transform-origin: center;">
+                                <text x="0" y="6" text-anchor="middle" font-size="13" font-weight="700" fill="#222" font-family="Inter, sans-serif">
+                                    <animate attributeName="y" values="-258;6" dur="2.4s" repeatCount="indefinite"/>
+                                    projeto-paisagismo.pdf
+                                </text>
+                            </g>
+                        </g>
+                    </g>
+                </svg>`,
+            parse: () => {
+                const visible = (i) => `<animate attributeName="opacity" from="0" to="1" begin="${i*0.04}s" dur="0.3s" fill="freeze"/>`;
+                return `
+                <svg viewBox="0 0 1000 540" width="100%" height="100%">
+                    <g stroke="#1f1f1f" stroke-width="0.5" fill="none">
+                        <path d="M 80 60 H 920 V 480 H 80 Z" stroke="#333"/>
+                    </g>
+                    <g>
+                        <rect x="80" y="60" width="60" height="420" fill="#4ADE80" fill-opacity="0.15">
+                            <animate attributeName="x" values="80;860" dur="1.6s" repeatCount="indefinite"/>
+                        </rect>
+                        <line stroke="#4ADE80" stroke-width="2" y1="60" y2="480" x1="140" x2="140" filter="url(#glow)">
+                            <animate attributeName="x1" values="140;920" dur="1.6s" repeatCount="indefinite"/>
+                            <animate attributeName="x2" values="140;920" dur="1.6s" repeatCount="indefinite"/>
+                        </line>
+                    </g>
+                    <defs><filter id="glow"><feGaussianBlur stdDeviation="3"/></filter></defs>
+                    <g>${dots.slice(0, 50).map((d, i) => `
+                        <g opacity="0">${visible(i)}
+                            <circle cx="${d.x}" cy="${d.y}" r="${d.r + 2}" fill="${d.color}" fill-opacity="0.25"/>
+                            <circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}"/>
+                        </g>`).join('')}
+                    </g>
+                    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#999">
+                        <text x="100" y="510">&gt; analisando_pdf.py &middot; pagina 04/12 &middot; <tspan fill="#4ADE80">156 itens detectados</tspan></text>
+                    </g>
+                </svg>`;
+            },
+            map: () => `
+                <svg viewBox="0 0 1000 540" width="100%" height="100%">
+                    <pattern id="grid-d" width="24" height="24" patternUnits="userSpaceOnUse">
+                        <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#1f1f1f" stroke-width="0.5"/>
+                    </pattern>
+                    <rect width="1000" height="540" fill="url(#grid-d)"/>
+                    <path d="M 80 60 H 920 V 480 H 80 Z" stroke="#333" stroke-width="1" fill="none"/>
+                    <g>${dots.map((d, i) => `
+                        <g>
+                            <circle cx="${d.x}" cy="${d.y}" r="${d.r + 3}" fill="${d.color}" fill-opacity="0.2">
+                                <animate attributeName="r" values="${d.r + 3};${d.r + 8};${d.r + 3}" dur="2s" repeatCount="indefinite" begin="${i*0.05}s"/>
+                                <animate attributeName="fill-opacity" values="0.2;0;0.2" dur="2s" repeatCount="indefinite" begin="${i*0.05}s"/>
+                            </circle>
+                            <circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}"/>
+                        </g>`).join('')}
+                    </g>
+                    <g transform="translate(700 80)" font-family="JetBrains Mono, monospace">
+                        <rect x="-12" y="-20" width="220" height="180" rx="10" fill="#141414" stroke="#262626"/>
+                        <text x="0" y="0" font-size="9" fill="#666" letter-spacing="2">LEGENDA</text>
+                        ${PALETTE.slice(0, 8).map((c, i) => `
+                            <g transform="translate(0 ${20 + i*18})">
+                                <circle cx="6" cy="0" r="5" fill="${c}"/>
+                                <text x="20" y="3" font-size="10" fill="#999">SP${(i+1).toString().padStart(2,'0')}</text>
+                                <text x="180" y="3" font-size="10" fill="#fff" text-anchor="end">${Math.floor(seedRand(i+10)*30+5)}</text>
+                            </g>`).join('')}
+                    </g>
+                </svg>`,
+            export: () => `
+                <svg viewBox="0 0 1000 540" width="100%" height="100%">
+                    <g transform="translate(180 120)">
+                        <rect x="0" y="0" width="280" height="320" rx="14" fill="#141414" stroke="#262626"/>
+                        <rect x="0" y="0" width="280" height="36" fill="#1c1c1c"/>
+                        <circle cx="14" cy="18" r="4" fill="#ff5f57"/>
+                        <circle cx="28" cy="18" r="4" fill="#febc2e"/>
+                        <circle cx="42" cy="18" r="4" fill="#28c840"/>
+                        <text x="140" y="22" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#666">mapa.html</text>
+                        <pattern id="g-x" width="14" height="14" patternUnits="userSpaceOnUse">
+                            <path d="M 14 0 L 0 0 0 14" fill="none" stroke="#1f1f1f" stroke-width="0.5"/>
+                        </pattern>
+                        <rect x="14" y="50" width="252" height="240" fill="url(#g-x)"/>
+                        ${dots.slice(0, 28).map(d => {
+                            const x = 14 + (d.x / 1000) * 252;
+                            const y = 50 + (d.y / 540) * 240;
+                            return `<circle cx="${x}" cy="${y}" r="3" fill="${d.color}"/>`;
+                        }).join('')}
+                        <text x="140" y="306" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#4ADE80">HTML INTERATIVO</text>
+                    </g>
+                    <g transform="translate(540 120)">
+                        <rect x="0" y="0" width="280" height="320" rx="14" fill="#fafafa"/>
+                        <rect x="0" y="0" width="280" height="36" fill="#f0f0f0"/>
+                        <text x="140" y="22" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#999">apresentacao.pdf</text>
+                        <text x="20" y="74" font-family="Inter, sans-serif" font-size="9" fill="#999" letter-spacing="2">APRESENTACAO EXECUTIVA</text>
+                        <text x="20" y="100" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#111">Tibouchina granulosa</text>
+                        <text x="20" y="118" font-family="Inter, sans-serif" font-size="11" fill="#666">Quaresmeira &middot; Arvore</text>
+                        <rect x="20" y="138" width="100" height="100" rx="6" fill="#e5e5e5"/>
+                        <text x="70" y="195" text-anchor="middle" font-size="32">&#127794;</text>
+                        ${[['Quantidade','12'],['Cor mapa', null],['Origem','Brasil']].map((kv, i) => `
+                            <g transform="translate(140 ${150 + i*22})">
+                                <text x="0" y="0" font-size="9" fill="#666" font-family="Inter, sans-serif">${kv[0]}</text>
+                                ${kv[1] ? `<text x="120" y="0" text-anchor="end" font-size="10" font-weight="700" fill="#111" font-family="Inter, sans-serif">${kv[1]}</text>`
+                                    : `<rect x="108" y="-10" width="14" height="14" rx="3" fill="${PALETTE[1]}"/>`}
+                                <line x1="0" y1="6" x2="120" y2="6" stroke="#eee"/>
+                            </g>`).join('')}
+                        <text x="140" y="306" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FB923C">PDF EXECUTIVO</text>
+                    </g>
+                </svg>`,
+        };
+        const URLS = {
+            upload: 'mapa-vegetacao.app/processar',
+            parse: 'mapa-vegetacao.app/processar?status=identificando',
+            map: 'mapa-vegetacao.app/processar?status=posicionando',
+            export: 'mapa-vegetacao.app/exportar'
+        };
+        const setStep = (step) => {
+            demoSteps.forEach(b => b.classList.toggle('active', b.dataset.step === step));
+            demoStage.innerHTML = demoStates[step]();
+            demoUrl.textContent = URLS[step];
+        };
+        demoSteps.forEach(b => b.addEventListener('click', () => setStep(b.dataset.step)));
+        // auto-cycle
+        let stepIdx = 0;
+        const stepKeys = ['upload', 'parse', 'map', 'export'];
+        let cycleTimer = null;
+        const startCycle = () => {
+            stop();
+            cycleTimer = setInterval(() => {
+                stepIdx = (stepIdx + 1) % stepKeys.length;
+                setStep(stepKeys[stepIdx]);
+            }, 4500);
+        };
+        const stop = () => { if (cycleTimer) clearInterval(cycleTimer); cycleTimer = null; };
+        demoSteps.forEach(b => b.addEventListener('click', () => { stop(); }));
+        const demoSection = document.getElementById('demo');
+        const demoIO = new IntersectionObserver((es) => {
+            es.forEach(e => { if (e.isIntersecting) startCycle(); else stop(); });
+        }, { threshold: 0.4 });
+        demoIO.observe(demoSection);
+        setStep('upload');
+
+        // ---------- BEFORE / AFTER SLIDER ----------
+        const baWrap = document.getElementById('baWrap');
+        const afterDots = baWrap.querySelector('#afterDots');
+        // Build map dots for the after side
+        const baSeeded = Array.from({length: 156}, (_, i) => ({
+            x: 110 + seedRand(i*11) * 980,
+            y: 110 + seedRand(i*17) * 440,
+            r: 5 + seedRand(i*5) * 3,
+            color: PALETTE[i % PALETTE.length]
+        }));
+        afterDots.innerHTML = baSeeded.map(d => `<circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}" fill-opacity="0.85"/>`).join('');
+
+        const setBaPos = (clientX) => {
+            const rect = baWrap.getBoundingClientRect();
+            const pct = Math.max(2, Math.min(98, ((clientX - rect.left) / rect.width) * 100));
+            baWrap.style.setProperty('--ba-pos', pct + '%');
+        };
+        let baDragging = false;
+        baWrap.addEventListener('mousedown', (e) => { baDragging = true; setBaPos(e.clientX); });
+        window.addEventListener('mousemove', (e) => { if (baDragging) setBaPos(e.clientX); });
+        window.addEventListener('mouseup', () => { baDragging = false; });
+        baWrap.addEventListener('touchstart', (e) => { baDragging = true; setBaPos(e.touches[0].clientX); }, { passive: true });
+        baWrap.addEventListener('touchmove', (e) => { if (baDragging) setBaPos(e.touches[0].clientX); }, { passive: true });
+        window.addEventListener('touchend', () => { baDragging = false; });
+        // auto-tease on scroll into view
+        const baIO = new IntersectionObserver((entries) => {
+            entries.forEach(e => {
+                if (!e.isIntersecting) return;
+                const start = performance.now();
+                const dur = 1800;
+                const animate = (now) => {
+                    const t = Math.min(1, (now - start) / dur);
+                    const eased = 0.5 - Math.cos(t * Math.PI) * 0.5;
+                    baWrap.style.setProperty('--ba-pos', (50 + Math.sin(eased * Math.PI * 2) * 20) + '%');
+                    if (t < 1) requestAnimationFrame(animate);
+                    else baWrap.style.setProperty('--ba-pos', '50%');
+                };
+                requestAnimationFrame(animate);
+                baIO.unobserve(e.target);
+            });
+        }, { threshold: 0.4 });
+        baIO.observe(baWrap);
+
+        // ---------- SPECIES GALLERY ----------
+        const galleryGrid = document.getElementById('galleryGrid');
+        const galleryMeta = document.getElementById('galleryMeta');
+        const gallerySearch = document.getElementById('gallerySearch');
+        const loadMoreBtn = document.getElementById('loadMoreBtn');
+        let allSpecies = [];
+        let speciesData = {}; // code -> { nome_popular, nome_cientifico, ... }
+        let displayed = 0;
+        const PAGE = 24;
+
+        const renderBatch = (filter) => {
+            galleryGrid.innerHTML = '';
+            const filtered = allSpecies.filter(s => !filter || s.code.toLowerCase().includes(filter.toLowerCase()));
+            const limit = Math.min(filtered.length, displayed);
+            for (let i = 0; i < limit; i++) {
+                const s = filtered[i];
+                const div = document.createElement('div');
+                div.className = 'specie';
+                div.dataset.code = s.code;
+                div.innerHTML = `<img loading="lazy" src="/especies_img/${s.file}" alt="${s.code}"><div class="code">${s.code}</div>`;
+                div.addEventListener('click', () => openLightbox(s.code));
+                galleryGrid.appendChild(div);
+            }
+            const total = filtered.length;
+            galleryMeta.textContent = `// ${limit} de ${total} especies`;
+            loadMoreBtn.style.display = limit < total ? '' : 'none';
+        };
+
+        fetch('/especies_img/mapping.json')
+            .then(r => r.json())
+            .then(map => {
+                allSpecies = Object.entries(map).map(([code, file]) => ({ code, file })).sort(() => Math.random() - 0.5);
+                displayed = PAGE;
+                renderBatch('');
+            })
+            .catch(() => { galleryMeta.textContent = '// erro ao carregar manifesto'; });
+
+        fetch('/api/species')
+            .then(r => r.ok ? r.json() : Promise.reject())
+            .then(data => {
+                if (data && data.species && typeof data.species === 'object') {
+                    speciesData = data.species;
+                }
+            })
+            .catch(() => {});
+
+        loadMoreBtn.addEventListener('click', () => {
+            displayed += PAGE;
+            renderBatch(gallerySearch.value);
+        });
+        let searchTimer;
+        gallerySearch.addEventListener('input', (e) => {
+            clearTimeout(searchTimer);
+            searchTimer = setTimeout(() => {
+                displayed = PAGE;
+                renderBatch(e.target.value);
+            }, 120);
+        });
+
+        // ---------- LIGHTBOX ----------
+        const lightbox = document.getElementById('lightbox');
+        const lightboxClose = document.getElementById('lightboxClose');
+        const lightboxImg = document.getElementById('lightboxImg');
+        const lightboxCode = document.getElementById('lightboxCode');
+        const lightboxName = document.getElementById('lightboxName');
+        const lightboxSci = document.getElementById('lightboxSci');
+        const lightboxType = document.getElementById('lightboxType');
+        const lightboxOrigin = document.getElementById('lightboxOrigin');
+        const lightboxSun = document.getElementById('lightboxSun');
+
+        const openLightbox = (code) => {
+            const s = allSpecies.find(x => x.code === code);
+            if (!s) return;
+            const data = speciesData[code] || {};
+            lightboxImg.src = `/especies_img/${s.file}`;
+            lightboxCode.textContent = code;
+            lightboxName.textContent = data.common_name || code;
+            lightboxSci.textContent = data.scientific_name || '—';
+            lightboxType.textContent = data.type_label || data.broad_type || data.type || '—';
+            lightboxOrigin.textContent = data.origin || '—';
+            lightboxSun.textContent = data.sun_exposure || '—';
+            lightbox.classList.add('open');
+        };
+        lightboxClose.addEventListener('click', () => lightbox.classList.remove('open'));
+        lightbox.addEventListener('click', (e) => { if (e.target === lightbox) lightbox.classList.remove('open'); });
+        document.addEventListener('keydown', (e) => { if (e.key === 'Escape') lightbox.classList.remove('open'); });
+    })();
+    </script>
 </body>
 </html>

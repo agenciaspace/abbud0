@@ -1,0 +1,27 @@
+{
+  "name": "mapa-vegetacao-remotion",
+  "version": "1.0.0",
+  "description": "Apple-style promo video for Mapa de Vegetacao",
+  "private": true,
+  "scripts": {
+    "start": "remotion studio",
+    "build": "remotion render Promo out/promo.mp4 --codec=h264 --crf=23",
+    "build-webm": "remotion render Promo out/promo.webm --codec=vp9 --crf=30",
+    "render": "npm run build && npm run build-webm && cp out/promo.mp4 ../promo.mp4 && cp out/promo.webm ../promo.webm",
+    "upgrade": "remotion upgrade"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.236",
+    "@remotion/cli": "4.0.236",
+    "@remotion/google-fonts": "4.0.236",
+    "@remotion/renderer": "4.0.236",
+    "react": "19.0.0",
+    "react-dom": "19.0.0",
+    "remotion": "4.0.236"
+  },
+  "devDependencies": {
+    "@types/react": "19.0.0",
+    "@types/web": "0.0.166",
+    "typescript": "5.5.3"
+  }
+}
