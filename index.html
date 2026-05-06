@@ -7,35 +7,77 @@
     <meta name="description" content="Transforme PDFs de paisagismo em mapas interativos, contagem por especie e apresentacoes executivas. 326 especies catalogadas. Sem instalacao.">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@600&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
 
         :root {
-            --bg: #0a0a0a;
-            --bg2: #0f0f0f;
-            --surface: #141414;
-            --surface2: #1c1c1c;
-            --border: #262626;
-            --border2: #333;
-            --text: #f5f5f5;
-            --text2: #999;
-            --text3: #666;
-            --accent: #4ADE80;
-            --accent2: #22C55E;
-            --accent-dim: rgba(74, 222, 128, 0.15);
-            --mono: 'JetBrains Mono', 'SF Mono', Menlo, monospace;
+            /* Acctual color tokens */
+            --color-canvas-white: #ffffff;
+            --color-ink-black: #000000;
+            --color-graphite: #0f0f0f;
+            --color-deep-slate: #1e1e1e;
+            --color-ash-gray: #8d8d8d;
+            --color-button-black: #0d111b;
+            --color-sky-teal: #0098f2;
+            --color-hot-pink: #f200ca;
+            --color-vivid-violet: #6d56fc;
+            --color-subtle-cream: #f7fafc;
+
+            /* Typography */
+            --font-open-runde: 'Inter', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            --font-caveat: 'Caveat', cursive;
+            --font-sans-serif: ui-sans-serif, system-ui, 'Segoe UI', Roboto, Helvetica Neue, Arial, sans-serif;
+
+            /* Type scale */
+            --text-caption: 12px;
+            --text-body-sm: 14px;
+            --text-body: 16px;
+            --text-subheading: 20px;
+            --text-heading: 32px;
+            --text-heading-lg: 40px;
+            --text-display: 64px;
+
+            /* Spacing */
+            --space-4: 4px;
+            --space-8: 8px;
+            --space-16: 16px;
+            --space-20: 20px;
+            --space-24: 24px;
+            --space-32: 32px;
+            --space-40: 40px;
+            --space-48: 48px;
+            --space-64: 64px;
+            --space-80: 80px;
+            --space-96: 96px;
+            --space-100: 100px;
+
+            /* Radii */
+            --radius-card: 20px;
+            --radius-image: 32px;
+            --radius-button: 100px;
+            --radius-badge: 1250px;
+
+            /* Shadows */
+            --shadow-subtle: rgba(0, 0, 0, 0.06) 0px 2.5px 2.5px 0px;
+            --shadow-button: rgb(36, 38, 40) 0px 0px 0px 1px, rgba(27, 28, 29, 0.48) 0px 1px 2px 0px;
+
+            /* Layout */
+            --page-max-width: 1200px;
         }
 
         html { scroll-behavior: smooth; }
 
         body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            line-height: 1.6;
+            background: var(--color-canvas-white);
+            color: var(--color-graphite);
+            font-family: var(--font-open-runde);
+            font-size: var(--text-body);
+            line-height: 1.5;
+            font-weight: 400;
             overflow-x: hidden;
             -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
         }
 
         a { color: inherit; text-decoration: none; }
@@ -45,171 +87,237 @@
         .nav {
             position: fixed; top: 0; left: 0; right: 0;
             z-index: 100;
-            padding: 14px 32px;
+            padding: 16px 32px;
             display: flex; align-items: center; justify-content: space-between;
-            background: rgba(10,10,10,0.6);
+            background: rgba(255, 255, 255, 0.85);
             backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
             border-bottom: 1px solid transparent;
             transition: border-color 0.2s, background 0.2s;
         }
-        .nav.scrolled { border-bottom-color: var(--border); background: rgba(10,10,10,0.9); }
-        .nav .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; letter-spacing: -0.3px; }
+        .nav.scrolled { border-bottom-color: rgba(15, 15, 15, 0.06); background: rgba(255, 255, 255, 0.95); }
+        .nav .brand {
+            display: flex; align-items: center; gap: 10px;
+            font-weight: 600; font-size: var(--text-body);
+            letter-spacing: -0.012em;
+            color: var(--color-ink-black);
+        }
         .nav .brand .mark {
-            width: 28px; height: 28px; border-radius: 7px;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            width: 28px; height: 28px; border-radius: 8px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.08);
             display: flex; align-items: center; justify-content: center;
             font-size: 16px;
+            box-shadow: var(--shadow-subtle);
         }
-        .nav .links { display: flex; gap: 28px; align-items: center; }
-        .nav .links a { font-size: 13.5px; color: var(--text2); transition: color 0.15s; }
-        .nav .links a:hover { color: var(--text); }
+        .nav .links { display: flex; gap: 32px; align-items: center; }
+        .nav .links a {
+            font-size: var(--text-body-sm);
+            color: var(--color-ash-gray);
+            font-weight: 400;
+            transition: color 0.15s;
+        }
+        .nav .links a:not(.btn):hover { color: var(--color-ink-black); }
 
-        /* BUTTONS */
+        /* BUTTONS — pill shape, 100px radius */
         .btn {
             display: inline-flex; align-items: center; gap: 8px;
-            padding: 12px 22px; border: none; border-radius: 10px;
-            font-size: 14px; font-weight: 600; cursor: pointer;
-            transition: all 0.15s; text-decoration: none;
+            padding: 10px 18px; border: none;
+            border-radius: var(--radius-button);
+            font-size: var(--text-body-sm); font-weight: 500;
             font-family: inherit;
+            cursor: pointer;
+            transition: transform 0.15s, opacity 0.15s, background 0.15s;
+            text-decoration: none;
+            white-space: nowrap;
         }
-        .btn-primary { background: var(--accent); color: #052e16; }
-        .btn-primary:hover { background: var(--accent2); transform: translateY(-1px); box-shadow: 0 10px 30px rgba(74,222,128,0.25); }
-        .btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2); }
-        .btn-outline:hover { border-color: var(--text2); background: var(--surface); }
-        .btn-sm { padding: 9px 16px; font-size: 13px; }
-        .btn-lg { padding: 14px 28px; font-size: 15px; }
+        .btn-primary {
+            background: var(--color-button-black);
+            color: var(--color-canvas-white);
+            box-shadow: var(--shadow-button);
+        }
+        .btn-primary:hover { transform: translateY(-1px); opacity: 0.92; }
+        .btn-text {
+            background: transparent;
+            color: var(--color-ash-gray);
+            padding: 10px 14px;
+        }
+        .btn-text:hover { color: var(--color-ink-black); }
+        .btn-outline {
+            background: var(--color-canvas-white);
+            color: var(--color-graphite);
+            border: 1px solid rgba(15, 15, 15, 0.10);
+        }
+        .btn-outline:hover { border-color: rgba(15, 15, 15, 0.25); }
+        .btn-lg { padding: 14px 26px; font-size: var(--text-body); }
+        .btn-sm { padding: 6px 14px; font-size: var(--text-body-sm); }
+
+        /* TYPOGRAPHY UTILITIES */
+        h1, h2, h3, h4, h5 { color: var(--color-ink-black); font-weight: 600; }
+        .display {
+            font-size: clamp(40px, 7vw, var(--text-display));
+            line-height: 1.05;
+            letter-spacing: -0.037em;
+            font-weight: 600;
+            color: var(--color-ink-black);
+        }
+        .heading-lg {
+            font-size: clamp(32px, 4.5vw, var(--text-heading-lg));
+            line-height: 1.2;
+            letter-spacing: -0.030em;
+            font-weight: 600;
+        }
+        .heading {
+            font-size: var(--text-heading);
+            line-height: 1.21;
+            letter-spacing: -0.020em;
+            font-weight: 600;
+        }
+        .subheading {
+            font-size: var(--text-subheading);
+            line-height: 1.25;
+            letter-spacing: -0.012em;
+            font-weight: 500;
+        }
+        .body { font-size: var(--text-body); line-height: 1.5; color: var(--color-deep-slate); }
+        .body-sm { font-size: var(--text-body-sm); line-height: 1.43; }
+        .caption {
+            font-size: var(--text-caption);
+            line-height: 1.2;
+            font-family: var(--font-sans-serif);
+            color: var(--color-ash-gray);
+        }
+        .caveat {
+            font-family: var(--font-caveat);
+            font-weight: 600;
+            font-size: 24px;
+            line-height: 1.33;
+        }
 
         /* HERO */
         .hero {
             position: relative;
-            min-height: 100vh;
             padding: 140px 32px 80px;
             display: flex; flex-direction: column;
             justify-content: center; align-items: center;
             text-align: center;
             overflow: hidden;
+            background: var(--color-canvas-white);
         }
-        .hero-bg {
-            position: absolute; inset: 0;
-            background:
-                radial-gradient(ellipse 60% 40% at 50% 30%, var(--accent-dim), transparent 60%),
-                radial-gradient(ellipse 80% 50% at 50% 100%, rgba(34,197,94,0.10), transparent 60%);
-            z-index: 0;
-        }
-        .hero-grid {
-            position: absolute; inset: 0;
-            background-image:
-                linear-gradient(var(--border) 1px, transparent 1px),
-                linear-gradient(90deg, var(--border) 1px, transparent 1px);
-            background-size: 48px 48px;
-            mask-image: radial-gradient(ellipse 70% 50% at 50% 30%, #000, transparent 70%);
-            opacity: 0.4;
-            z-index: 0;
-        }
-        .hero-content { position: relative; z-index: 1; max-width: 1100px; }
         .hero-eyebrow {
             display: inline-flex; align-items: center; gap: 8px;
-            font-family: var(--mono);
-            font-size: 12px; letter-spacing: 0; color: var(--accent);
-            background: var(--accent-dim);
-            border: 1px solid rgba(74,222,128,0.25);
-            padding: 6px 14px; border-radius: 100px;
-            margin-bottom: 28px;
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            color: var(--color-ash-gray);
+            background: var(--color-subtle-cream);
+            padding: 6px 14px;
+            border-radius: var(--radius-badge);
+            margin-bottom: 32px;
+            letter-spacing: 0;
         }
         .hero-eyebrow .dot {
-            width: 6px; height: 6px; border-radius: 50%; background: var(--accent);
-            box-shadow: 0 0 10px var(--accent);
+            width: 6px; height: 6px; border-radius: 50%;
+            background: var(--color-sky-teal);
             animation: pulse 2s ease-in-out infinite;
         }
         @keyframes pulse {
             0%, 100% { opacity: 1; }
             50% { opacity: 0.4; }
         }
-        .hero h1 {
-            font-size: clamp(40px, 7vw, 88px);
-            font-weight: 800; letter-spacing: -3px; line-height: 1;
-            margin-bottom: 24px;
-        }
-        .hero h1 .grad {
-            background: linear-gradient(135deg, var(--accent), #86efac);
-            -webkit-background-clip: text;
-            background-clip: text;
-            color: transparent;
-        }
+        .hero h1 { margin: 0 auto 24px; max-width: 900px; }
         .hero p.lead {
             font-size: clamp(16px, 1.6vw, 20px);
-            color: var(--text2);
-            max-width: 660px; margin: 0 auto 36px;
+            line-height: 1.5;
+            color: var(--color-deep-slate);
+            max-width: 640px; margin: 0 auto 40px;
+            font-weight: 400;
         }
         .hero .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
         .hero .meta {
-            margin-top: 32px;
-            display: flex; gap: 28px; justify-content: center; flex-wrap: wrap;
-            font-family: var(--mono); font-size: 12px; color: var(--text3);
+            margin-top: 40px;
+            display: flex; gap: 24px; justify-content: center; flex-wrap: wrap;
         }
-        .hero .meta span::before { content: "\2713  "; color: var(--accent); margin-right: 4px; }
+        .hero .meta span {
+            display: inline-flex; align-items: center; gap: 6px;
+            font-size: var(--text-body-sm);
+            color: var(--color-graphite);
+            font-weight: 400;
+        }
+        .hero .meta span::before {
+            content: "";
+            display: inline-block;
+            width: 14px; height: 14px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3 8.5L6.5 12L13 4.5' stroke='%230098f2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-size: contain;
+        }
 
         .hero-video-wrap {
-            margin: 60px auto 0;
+            margin: 64px auto 0;
             max-width: 1100px;
             position: relative;
-            border-radius: 18px;
+            border-radius: var(--radius-image);
             overflow: hidden;
-            border: 1px solid var(--border);
-            box-shadow: 0 60px 120px rgba(0,0,0,0.6), 0 0 0 1px rgba(74,222,128,0.1);
-            background: var(--surface);
-        }
-        .hero-video-wrap::before {
-            content: "";
-            position: absolute; inset: -1px;
-            border-radius: 18px;
-            padding: 1px;
-            background: linear-gradient(135deg, rgba(74,222,128,0.4), transparent 50%, rgba(74,222,128,0.2));
-            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
-            -webkit-mask-composite: xor;
-            mask-composite: exclude;
-            pointer-events: none;
+            background: var(--color-subtle-cream);
+            box-shadow: var(--shadow-subtle);
+            border: 1px solid rgba(15, 15, 15, 0.06);
         }
         .hero-video {
             width: 100%; display: block;
-            background: var(--bg);
+            background: var(--color-subtle-cream);
         }
         .hero-video-controls {
-            position: absolute; bottom: 14px; right: 14px;
+            position: absolute; bottom: 16px; right: 16px;
             display: flex; gap: 8px;
         }
         .video-btn {
-            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
-            border: 1px solid rgba(255,255,255,0.1);
-            color: var(--text); width: 36px; height: 36px;
+            background: rgba(255, 255, 255, 0.9);
+            backdrop-filter: blur(8px);
+            border: 1px solid rgba(15, 15, 15, 0.06);
+            color: var(--color-graphite);
+            width: 36px; height: 36px;
             border-radius: 50%; cursor: pointer;
             display: flex; align-items: center; justify-content: center;
             font-size: 14px;
+            transition: background 0.15s;
         }
-        .video-btn:hover { background: rgba(0,0,0,0.8); }
+        .video-btn:hover { background: var(--color-canvas-white); }
 
         /* SECTIONS */
-        section { padding: 120px 32px; position: relative; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .container-narrow { max-width: 900px; margin: 0 auto; }
+        section {
+            padding: 96px 32px;
+            position: relative;
+        }
+        .section-cream { background: var(--color-subtle-cream); }
+        .container { max-width: var(--page-max-width); margin: 0 auto; }
+        .container-narrow { max-width: 800px; margin: 0 auto; }
 
         .eyebrow {
             display: inline-block;
-            font-family: var(--mono);
-            font-size: 12px; color: var(--accent);
-            background: var(--accent-dim);
-            padding: 4px 12px; border-radius: 6px;
-            margin-bottom: 18px;
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            color: var(--color-sky-teal);
+            background: rgba(0, 152, 242, 0.08);
+            padding: 6px 14px;
+            border-radius: var(--radius-badge);
+            margin-bottom: 20px;
+            font-weight: 400;
         }
         .section-title {
-            font-size: clamp(32px, 4.5vw, 56px);
-            font-weight: 700; letter-spacing: -1.5px; line-height: 1.05;
-            margin-bottom: 18px;
+            font-size: clamp(32px, 4.5vw, 48px);
+            font-weight: 600;
+            letter-spacing: -0.030em;
+            line-height: 1.1;
+            color: var(--color-ink-black);
+            margin-bottom: 20px;
         }
         .section-sub {
-            font-size: 18px; color: var(--text2);
-            max-width: 660px;
-            margin-bottom: 56px;
+            font-size: var(--text-subheading);
+            line-height: 1.5;
+            color: var(--color-deep-slate);
+            max-width: 640px;
+            margin-bottom: 64px;
+            font-weight: 400;
         }
         .center { text-align: center; }
         .center .section-sub { margin-left: auto; margin-right: auto; }
@@ -217,16 +325,13 @@
         /* REVEAL */
         .reveal {
             opacity: 0;
-            transform: translateY(24px);
+            transform: translateY(20px);
             transition: opacity 0.8s cubic-bezier(0.22, 1, 0.36, 1), transform 0.8s cubic-bezier(0.22, 1, 0.36, 1);
         }
-        .reveal.in {
-            opacity: 1;
-            transform: translateY(0);
-        }
+        .reveal.in { opacity: 1; transform: translateY(0); }
         .reveal-stagger > * {
             opacity: 0;
-            transform: translateY(20px);
+            transform: translateY(16px);
             transition: opacity 0.6s, transform 0.6s;
         }
         .reveal-stagger.in > * { opacity: 1; transform: translateY(0); }
@@ -242,48 +347,59 @@
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 0;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 18px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.06);
+            border-radius: var(--radius-card);
             overflow: hidden;
+            box-shadow: var(--shadow-subtle);
         }
         .stat {
-            padding: 36px 28px;
-            border-right: 1px solid var(--border);
+            padding: 40px 24px;
+            border-right: 1px solid rgba(15, 15, 15, 0.06);
             text-align: center;
         }
         .stat:last-child { border-right: none; }
         .stat .num {
-            font-size: 52px; font-weight: 700; letter-spacing: -2px;
-            color: var(--accent);
+            font-size: 48px;
+            font-weight: 600;
+            letter-spacing: -0.030em;
+            color: var(--color-ink-black);
             font-variant-numeric: tabular-nums;
             display: inline-block;
+            line-height: 1;
         }
-        .stat .num .suffix { font-size: 30px; }
-        .stat .lbl { font-family: var(--mono); font-size: 11px; color: var(--text3); margin-top: 6px; letter-spacing: 1px; text-transform: uppercase; }
+        .stat .num .suffix { font-size: 28px; color: var(--color-sky-teal); }
+        .stat .lbl {
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            color: var(--color-ash-gray);
+            margin-top: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
 
         /* DEMO */
         .demo-wrap {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.06);
+            border-radius: var(--radius-card);
             padding: 8px;
-            position: relative;
+            box-shadow: var(--shadow-subtle);
         }
         .demo-window {
-            background: var(--bg2);
+            background: var(--color-subtle-cream);
             border-radius: 14px;
             overflow: hidden;
-            border: 1px solid var(--border);
+            border: 1px solid rgba(15, 15, 15, 0.04);
         }
         .demo-toolbar {
             display: flex; align-items: center; gap: 12px;
-            padding: 10px 16px;
-            background: var(--surface2);
-            border-bottom: 1px solid var(--border);
-            font-family: var(--mono);
-            font-size: 12px;
-            color: var(--text3);
+            padding: 12px 16px;
+            background: var(--color-canvas-white);
+            border-bottom: 1px solid rgba(15, 15, 15, 0.06);
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            color: var(--color-ash-gray);
         }
         .demo-toolbar .traffic { display: flex; gap: 6px; }
         .demo-toolbar .traffic span { width: 11px; height: 11px; border-radius: 50%; }
@@ -292,7 +408,7 @@
         .demo-toolbar .traffic .g { background: #28c840; }
         .demo-toolbar .url {
             flex: 1; text-align: center;
-            background: var(--surface);
+            background: var(--color-subtle-cream);
             border-radius: 6px;
             padding: 4px 10px;
         }
@@ -307,41 +423,46 @@
             width: 100%;
             height: 540px;
             background:
-                linear-gradient(var(--border) 1px, transparent 1px) 0 0 / 24px 24px,
-                linear-gradient(90deg, var(--border) 1px, transparent 1px) 0 0 / 24px 24px,
-                var(--bg2);
+                linear-gradient(rgba(15, 15, 15, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
+                linear-gradient(90deg, rgba(15, 15, 15, 0.04) 1px, transparent 1px) 0 0 / 24px 24px,
+                var(--color-canvas-white);
         }
         .demo-stage svg { display: block; width: 100%; height: 100%; }
         .demo-controls {
             display: flex; gap: 10px; justify-content: center;
-            margin-top: 24px;
+            margin-top: 32px;
+            flex-wrap: wrap;
         }
         .demo-step {
-            display: flex; align-items: center; gap: 10px;
-            padding: 10px 18px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 100px;
+            display: inline-flex; align-items: center; gap: 8px;
+            padding: 8px 18px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.10);
+            border-radius: var(--radius-button);
             cursor: pointer;
-            font-size: 13px; color: var(--text2);
+            font-size: var(--text-body-sm);
+            color: var(--color-ash-gray);
             transition: all 0.2s;
-            font-family: var(--mono);
+            font-family: inherit;
+            font-weight: 400;
         }
-        .demo-step:hover { color: var(--text); border-color: var(--border2); }
+        .demo-step:hover { color: var(--color-ink-black); border-color: rgba(15, 15, 15, 0.25); }
         .demo-step.active {
-            background: var(--accent-dim);
-            border-color: var(--accent);
-            color: var(--accent);
+            background: var(--color-button-black);
+            border-color: var(--color-button-black);
+            color: var(--color-canvas-white);
+            box-shadow: var(--shadow-button);
         }
-        .demo-step .num { font-weight: 700; opacity: 0.6; }
+        .demo-step .num { font-weight: 500; opacity: 0.7; }
 
-        /* BEFORE/AFTER SLIDER */
+        /* BEFORE/AFTER */
         .ba-wrap {
             position: relative;
-            border-radius: 16px;
+            border-radius: var(--radius-card);
             overflow: hidden;
-            border: 1px solid var(--border);
-            background: var(--surface);
+            border: 1px solid rgba(15, 15, 15, 0.06);
+            background: var(--color-canvas-white);
+            box-shadow: var(--shadow-subtle);
             user-select: none;
             cursor: ew-resize;
             aspect-ratio: 16 / 9;
@@ -353,9 +474,9 @@
             position: absolute; top: 0; bottom: 0;
             left: var(--ba-pos, 50%);
             width: 2px;
-            background: var(--accent);
+            background: var(--color-sky-teal);
             transform: translateX(-50%);
-            box-shadow: 0 0 0 1px rgba(0,0,0,0.4), 0 0 30px var(--accent);
+            box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.06);
             pointer-events: none;
         }
         .ba-handle::after {
@@ -363,74 +484,79 @@
             position: absolute; top: 50%; left: 50%;
             transform: translate(-50%, -50%);
             width: 44px; height: 44px;
-            background: var(--accent);
-            color: #052e16;
+            background: var(--color-sky-teal);
+            color: var(--color-canvas-white);
             border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
-            font-weight: 700; font-size: 18px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+            font-weight: 600; font-size: 18px;
+            box-shadow: 0 6px 20px rgba(0, 152, 242, 0.30);
         }
         .ba-label {
             position: absolute; top: 16px;
-            font-family: var(--mono); font-size: 11px;
-            background: rgba(0,0,0,0.7); backdrop-filter: blur(8px);
-            color: var(--text); padding: 6px 12px;
-            border-radius: 6px;
-            letter-spacing: 1px; text-transform: uppercase;
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            background: var(--color-canvas-white);
+            color: var(--color-graphite);
+            padding: 6px 12px;
+            border-radius: var(--radius-badge);
+            border: 1px solid rgba(15, 15, 15, 0.08);
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
         .ba-label.left { left: 16px; }
-        .ba-label.right { right: 16px; color: var(--accent); }
+        .ba-label.right { right: 16px; color: var(--color-sky-teal); }
 
         /* FEATURES */
         .features {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
+            gap: 20px;
         }
         .feature {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 14px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.06);
+            border-radius: var(--radius-card);
             padding: 32px;
-            transition: border-color 0.2s, transform 0.2s, background 0.2s;
-            position: relative;
-            overflow: hidden;
+            transition: transform 0.2s, box-shadow 0.2s;
         }
-        .feature::before {
-            content: "";
-            position: absolute; inset: 0;
-            background: radial-gradient(ellipse 80% 50% at 0% 0%, var(--accent-dim), transparent 60%);
-            opacity: 0;
-            transition: opacity 0.3s;
+        .feature:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-subtle);
         }
-        .feature:hover { border-color: rgba(74,222,128,0.4); transform: translateY(-3px); }
-        .feature:hover::before { opacity: 1; }
-        .feature > * { position: relative; }
         .feature .ic {
             width: 44px; height: 44px;
-            border-radius: 10px;
-            background: var(--accent-dim);
+            border-radius: 12px;
+            background: var(--color-subtle-cream);
             display: flex; align-items: center; justify-content: center;
-            font-size: 20px; color: var(--accent);
-            margin-bottom: 18px;
+            font-size: 22px;
+            margin-bottom: 20px;
         }
-        .feature h4 { font-size: 17px; font-weight: 600; margin-bottom: 8px; letter-spacing: -0.3px; }
-        .feature p { font-size: 14px; color: var(--text2); }
+        .feature h4 {
+            font-size: var(--text-subheading);
+            font-weight: 600;
+            margin-bottom: 8px;
+            letter-spacing: -0.012em;
+            color: var(--color-ink-black);
+        }
+        .feature p {
+            font-size: var(--text-body-sm);
+            color: var(--color-deep-slate);
+            line-height: 1.5;
+        }
 
         /* HOW IT WORKS - timeline */
         .timeline {
             position: relative;
             display: grid;
             grid-template-columns: repeat(4, 1fr);
-            gap: 24px;
+            gap: 32px;
         }
         .timeline::before {
             content: "";
             position: absolute;
             top: 32px; left: 12%; right: 12%;
-            height: 2px;
-            background: linear-gradient(90deg, transparent, var(--accent), var(--accent), transparent);
-            opacity: 0.3;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(0, 152, 242, 0.4) 20%, rgba(0, 152, 242, 0.4) 80%, transparent);
         }
         .step {
             position: relative;
@@ -440,17 +566,28 @@
             position: relative;
             width: 64px; height: 64px;
             border-radius: 50%;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            margin: 0 auto 20px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.10);
+            margin: 0 auto 24px;
             display: flex; align-items: center; justify-content: center;
-            font-family: var(--mono);
-            font-size: 18px; font-weight: 700;
-            color: var(--accent);
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--color-ink-black);
             z-index: 1;
+            box-shadow: var(--shadow-subtle);
         }
-        .step h4 { font-size: 16px; font-weight: 600; margin-bottom: 6px; }
-        .step p { font-size: 13px; color: var(--text2); }
+        .step h4 {
+            font-size: var(--text-subheading);
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--color-ink-black);
+            letter-spacing: -0.012em;
+        }
+        .step p {
+            font-size: var(--text-body-sm);
+            color: var(--color-deep-slate);
+            line-height: 1.5;
+        }
 
         /* GALLERY */
         .gallery-controls {
@@ -464,26 +601,27 @@
         }
         .gallery-search input {
             width: 100%;
-            padding: 12px 18px 12px 44px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            color: var(--text);
+            padding: 14px 20px 14px 44px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.10);
+            border-radius: var(--radius-button);
+            color: var(--color-ink-black);
             font-family: inherit;
-            font-size: 14px;
-            transition: border-color 0.2s, background 0.2s;
+            font-size: var(--text-body-sm);
+            transition: border-color 0.2s;
         }
-        .gallery-search input:focus { outline: none; border-color: var(--accent); background: var(--surface2); }
+        .gallery-search input::placeholder { color: var(--color-ash-gray); }
+        .gallery-search input:focus { outline: none; border-color: var(--color-sky-teal); }
         .gallery-search .ic {
-            position: absolute; left: 14px; top: 50%;
+            position: absolute; left: 16px; top: 50%;
             transform: translateY(-50%);
-            color: var(--text3);
+            color: var(--color-ash-gray);
             font-size: 16px;
         }
         .gallery-meta {
-            font-family: var(--mono);
-            font-size: 12px;
-            color: var(--text3);
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            color: var(--color-ash-gray);
             margin-bottom: 24px;
             text-align: center;
         }
@@ -495,27 +633,33 @@
         .specie {
             position: relative;
             aspect-ratio: 1;
-            border-radius: 10px;
+            border-radius: 16px;
             overflow: hidden;
-            background: var(--surface);
-            border: 1px solid var(--border);
+            background: var(--color-subtle-cream);
+            border: 1px solid rgba(15, 15, 15, 0.04);
             cursor: pointer;
-            transition: transform 0.2s, border-color 0.2s;
+            transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
         }
-        .specie:hover { transform: scale(1.04); border-color: var(--accent); z-index: 2; }
+        .specie:hover {
+            transform: scale(1.04);
+            border-color: var(--color-sky-teal);
+            z-index: 2;
+            box-shadow: var(--shadow-subtle);
+        }
         .specie img {
             width: 100%; height: 100%;
             object-fit: cover;
             transition: transform 0.4s;
         }
-        .specie:hover img { transform: scale(1.1); }
+        .specie:hover img { transform: scale(1.08); }
         .specie .code {
             position: absolute; bottom: 0; left: 0; right: 0;
-            padding: 8px 10px;
-            background: linear-gradient(to top, rgba(0,0,0,0.85), transparent);
-            font-family: var(--mono);
-            font-size: 11px; font-weight: 700;
-            color: #fff;
+            padding: 10px 12px;
+            background: linear-gradient(to top, rgba(0, 0, 0, 0.75), transparent);
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            font-weight: 500;
+            color: var(--color-canvas-white);
             letter-spacing: 1px;
         }
         .gallery-load-more {
@@ -526,8 +670,8 @@
         /* LIGHTBOX */
         .lightbox {
             position: fixed; inset: 0;
-            background: rgba(0,0,0,0.92);
-            backdrop-filter: blur(20px);
+            background: rgba(0, 0, 0, 0.55);
+            backdrop-filter: blur(12px);
             display: none;
             align-items: center; justify-content: center;
             z-index: 1000;
@@ -536,36 +680,57 @@
         .lightbox.open { display: flex; animation: fadeIn 0.2s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
         .lightbox-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
+            background: var(--color-canvas-white);
+            border-radius: var(--radius-card);
             max-width: 720px; width: 100%;
             display: grid; grid-template-columns: 1fr 1fr;
             overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.20);
         }
         .lightbox-img {
-            background: #000;
+            background: var(--color-subtle-cream);
             display: flex; align-items: center; justify-content: center;
             min-height: 360px;
         }
         .lightbox-img img { width: 100%; height: 100%; object-fit: cover; max-height: 480px; }
         .lightbox-info { padding: 32px; }
         .lightbox-info .code {
-            font-family: var(--mono);
-            font-size: 12px; color: var(--accent);
-            letter-spacing: 2px; margin-bottom: 8px;
+            font-family: var(--font-sans-serif);
+            font-size: var(--text-caption);
+            color: var(--color-sky-teal);
+            letter-spacing: 2px;
+            margin-bottom: 8px;
+            font-weight: 500;
         }
-        .lightbox-info h3 { font-size: 22px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.3px; }
-        .lightbox-info .sci { font-style: italic; color: var(--text2); font-size: 14px; margin-bottom: 24px; }
-        .lightbox-info .row { display: flex; justify-content: space-between; padding: 10px 0; border-top: 1px solid var(--border); font-size: 13px; }
-        .lightbox-info .row .k { color: var(--text3); }
+        .lightbox-info h3 {
+            font-size: 22px;
+            font-weight: 600;
+            margin-bottom: 4px;
+            letter-spacing: -0.012em;
+            color: var(--color-ink-black);
+        }
+        .lightbox-info .sci {
+            font-style: italic;
+            color: var(--color-ash-gray);
+            font-size: var(--text-body-sm);
+            margin-bottom: 24px;
+        }
+        .lightbox-info .row {
+            display: flex; justify-content: space-between;
+            padding: 12px 0;
+            border-top: 1px solid rgba(15, 15, 15, 0.06);
+            font-size: var(--text-body-sm);
+        }
+        .lightbox-info .row .k { color: var(--color-ash-gray); }
+        .lightbox-info .row span:last-child { color: var(--color-graphite); font-weight: 500; }
         .lightbox-close {
             position: absolute; top: 24px; right: 24px;
             width: 44px; height: 44px;
-            background: var(--surface);
-            border: 1px solid var(--border);
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.06);
             border-radius: 50%;
-            color: var(--text); cursor: pointer;
+            color: var(--color-graphite);
+            cursor: pointer;
             font-size: 20px;
         }
 
@@ -576,79 +741,125 @@
             gap: 20px;
         }
         .out {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 16px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.06);
+            border-radius: var(--radius-card);
             padding: 32px;
             position: relative;
             overflow: hidden;
+            box-shadow: var(--shadow-subtle);
         }
-        .out h4 { font-size: 22px; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.3px; display: flex; align-items: center; gap: 12px; }
-        .out h4 .icon { font-size: 26px; }
-        .out p { font-size: 14px; color: var(--text2); margin-bottom: 22px; }
+        .out h4 {
+            font-size: var(--text-heading);
+            font-weight: 600;
+            margin-bottom: 12px;
+            letter-spacing: -0.020em;
+            color: var(--color-ink-black);
+            display: flex; align-items: center; gap: 12px;
+        }
+        .out h4 .icon { font-size: 28px; }
+        .out p {
+            font-size: var(--text-body);
+            color: var(--color-deep-slate);
+            margin-bottom: 24px;
+            line-height: 1.5;
+        }
         .out ul { list-style: none; }
         .out li {
-            font-size: 13px; color: var(--text2);
-            padding: 8px 0;
-            border-top: 1px solid var(--border);
+            font-size: var(--text-body-sm);
+            color: var(--color-graphite);
+            padding: 12px 0;
+            border-top: 1px solid rgba(15, 15, 15, 0.06);
             display: flex; align-items: center; gap: 10px;
         }
-        .out li::before { content: "\2192"; color: var(--accent); font-weight: 700; }
-        .out.html h4 .icon { color: #60A5FA; }
-        .out.pdf h4 .icon { color: #FB923C; }
+        .out li::before {
+            content: "";
+            display: inline-block;
+            width: 14px; height: 14px;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none'%3E%3Cpath d='M3 8.5L6.5 12L13 4.5' stroke='%230098f2' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-size: contain;
+            flex-shrink: 0;
+        }
 
         /* FAQ */
         .faq details {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            margin-bottom: 10px;
+            background: var(--color-canvas-white);
+            border: 1px solid rgba(15, 15, 15, 0.06);
+            border-radius: var(--radius-card);
+            margin-bottom: 12px;
             overflow: hidden;
         }
         .faq summary {
             cursor: pointer;
-            padding: 22px 26px;
-            font-size: 15px; font-weight: 600;
+            padding: 22px 28px;
+            font-size: var(--text-body);
+            font-weight: 500;
+            color: var(--color-ink-black);
             list-style: none;
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
         .faq summary::-webkit-details-marker { display: none; }
-        .faq summary::after { content: "+"; color: var(--accent); font-size: 24px; transition: transform 0.2s; }
+        .faq summary::after {
+            content: "+";
+            color: var(--color-sky-teal);
+            font-size: 24px;
+            transition: transform 0.2s;
+            font-weight: 400;
+        }
         .faq details[open] summary::after { transform: rotate(45deg); }
-        .faq details p { padding: 0 26px 24px; font-size: 14px; color: var(--text2); }
+        .faq details p {
+            padding: 0 28px 24px;
+            font-size: var(--text-body-sm);
+            color: var(--color-deep-slate);
+            line-height: 1.5;
+        }
+
+        /* TESTIMONIAL-LIKE TAGLINE */
+        .tagline-pill {
+            display: inline-block;
+            margin-top: 8px;
+            color: var(--color-ash-gray);
+        }
 
         /* CTA FINAL */
         .cta-final {
-            background:
-                radial-gradient(ellipse 60% 80% at 50% 100%, var(--accent-dim), transparent 70%),
-                var(--surface);
-            border-top: 1px solid var(--border);
-            border-bottom: 1px solid var(--border);
+            background: var(--color-canvas-white);
+            border-top: 1px solid rgba(15, 15, 15, 0.06);
             text-align: center;
         }
 
         footer {
-            padding: 36px 32px;
-            border-top: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center;
-            flex-wrap: wrap; gap: 16px;
-            font-family: var(--mono); font-size: 12px; color: var(--text3);
+            padding: 40px 32px;
+            border-top: 1px solid rgba(15, 15, 15, 0.06);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            font-size: var(--text-body-sm);
+            color: var(--color-ash-gray);
+            background: var(--color-canvas-white);
         }
-        footer a:hover { color: var(--text); }
+        footer a:hover { color: var(--color-ink-black); }
+        footer .credit { font-family: var(--font-sans-serif); }
 
         @media (max-width: 900px) {
-            section { padding: 80px 20px; }
-            .hero { padding: 100px 20px 60px; min-height: auto; }
+            section { padding: 64px 20px; }
+            .hero { padding: 100px 20px 60px; }
             .nav { padding: 12px 20px; }
-            .nav .links a:not(.btn) { display: none; }
+            .nav .links a:not(.btn):not(.btn-text) { display: none; }
             .stats { grid-template-columns: 1fr 1fr; }
             .stat:nth-child(2) { border-right: none; }
-            .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 1px solid var(--border); }
+            .stat:nth-child(1), .stat:nth-child(2) { border-bottom: 1px solid rgba(15, 15, 15, 0.06); }
             .timeline { grid-template-columns: 1fr; gap: 32px; }
             .timeline::before { display: none; }
             .features, .outputs { grid-template-columns: 1fr; }
             .lightbox-card { grid-template-columns: 1fr; }
             .demo-stage { height: 380px; }
+            .stat .num { font-size: 36px; }
         }
     </style>
 </head>
@@ -664,17 +875,16 @@
             <a href="#especies">Especies</a>
             <a href="#entregaveis">Entregaveis</a>
             <a href="#faq">FAQ</a>
+            <a href="/app" class="btn btn-text">Entrar</a>
             <a href="/app" class="btn btn-primary btn-sm">Abrir App</a>
         </div>
     </nav>
 
     <!-- HERO -->
     <header class="hero" id="top">
-        <div class="hero-grid"></div>
-        <div class="hero-bg"></div>
         <div class="hero-content">
             <span class="hero-eyebrow"><span class="dot"></span>Paisagismo Tecnico &middot; v1.0</span>
-            <h1>Do PDF do projeto<br><span class="grad">ao mapa interativo.</span></h1>
+            <h1 class="display">Do PDF do projeto<br>ao mapa interativo.</h1>
             <p class="lead">Envie o PDF de paisagismo. O sistema identifica e posiciona cada planta, gera contagem por especie e entrega um mapa interativo com apresentacao executiva. Em minutos.</p>
             <div class="cta">
                 <a href="/app" class="btn btn-primary btn-lg">Abrir o App &nbsp;&rarr;</a>
@@ -685,6 +895,7 @@
                 <span>326 especies catalogadas</span>
                 <span>Exporta HTML, PNG e PDF</span>
             </div>
+            <div class="caveat tagline-pill">feito para projetos que precisam ser entregues hoje</div>
         </div>
 
         <div class="hero-video-wrap reveal">
@@ -699,7 +910,7 @@
     </header>
 
     <!-- STATS -->
-    <section style="padding-top: 0;">
+    <section style="padding-top: 40px; padding-bottom: 96px;">
         <div class="container reveal">
             <div class="stats">
                 <div class="stat"><span class="num" data-count="326"><span class="val">0</span></span><div class="lbl">Especies catalogadas</div></div>
@@ -711,10 +922,10 @@
     </section>
 
     <!-- INTERACTIVE DEMO -->
-    <section id="demo">
+    <section id="demo" class="section-cream">
         <div class="container">
             <div class="center reveal">
-                <span class="eyebrow">// demo interativo</span>
+                <span class="eyebrow">Demo interativo</span>
                 <h2 class="section-title">Veja o processo em camera lenta</h2>
                 <p class="section-sub">Clique em cada etapa para visualizar. O fluxo completo no app leva menos de um minuto.</p>
             </div>
@@ -741,10 +952,10 @@
     </section>
 
     <!-- BEFORE / AFTER -->
-    <section id="comparacao" style="background: var(--bg2);">
+    <section id="comparacao">
         <div class="container">
             <div class="center reveal">
-                <span class="eyebrow">// antes &middot; depois</span>
+                <span class="eyebrow">Antes &middot; depois</span>
                 <h2 class="section-title">Arraste para comparar</h2>
                 <p class="section-sub">A esquerda, um trecho da prancha tecnica original. A direita, o mesmo trecho ja processado pelo Mapa de Vegetacao.</p>
             </div>
@@ -753,24 +964,24 @@
                     <div class="ba-side ba-before-clip">
                         <svg viewBox="0 0 1200 675" width="100%" height="100%" preserveAspectRatio="xMidYMid slice">
                             <rect width="1200" height="675" fill="#fafafa"/>
-                            <g stroke="#999" stroke-width="0.5" fill="none">
+                            <g stroke="#d0d0d0" stroke-width="0.5" fill="none">
                                 <pattern id="bg-grid" width="30" height="30" patternUnits="userSpaceOnUse">
                                     <path d="M 30 0 L 0 0 0 30" />
                                 </pattern>
-                                <rect width="1200" height="675" fill="url(#bg-grid)" opacity="0.4"/>
+                                <rect width="1200" height="675" fill="url(#bg-grid)" opacity="0.5"/>
                             </g>
                             <g stroke="#222" stroke-width="2" fill="none">
                                 <path d="M 100 100 L 1100 100 L 1100 575 L 100 575 Z"/>
                                 <path d="M 100 250 L 1100 250" stroke-dasharray="4 4"/>
                                 <path d="M 600 100 L 600 575" stroke-dasharray="4 4"/>
                             </g>
-                            <g font-family="monospace" font-size="9" fill="#666">
+                            <g font-family="ui-monospace, monospace" font-size="9" fill="#666">
                                 <text x="120" y="92">EIXO A</text>
                                 <text x="620" y="92">EIXO B</text>
                                 <text x="120" y="246">N+0.00</text>
                                 <text x="120" y="595">CALCADA</text>
                             </g>
-                            <g font-family="monospace" font-size="8" fill="#222">
+                            <g font-family="ui-monospace, monospace" font-size="8" fill="#222">
                                 <text x="200" y="180">QUA</text><text x="280" y="220">QUA</text><text x="350" y="170">CER</text>
                                 <text x="450" y="200">IPE</text><text x="540" y="240">IPE</text><text x="640" y="180">PAU</text>
                                 <text x="720" y="220">PAU</text><text x="820" y="170">JAB</text><text x="900" y="220">FIC</text>
@@ -780,24 +991,23 @@
                                 <text x="200" y="500">arb</text><text x="320" y="510">arb</text><text x="450" y="500">arb</text>
                                 <text x="580" y="510">arb</text><text x="700" y="500">arb</text><text x="820" y="510">arb</text>
                             </g>
-                            <g font-family="monospace" font-size="7" fill="#888">
+                            <g font-family="ui-monospace, monospace" font-size="7" fill="#888">
                                 <text x="120" y="640">PROJETO PAISAGISMO &middot; PRANCHA 04 &middot; ESC 1:200 &middot; R00 &middot; 03/2026</text>
                             </g>
                         </svg>
                     </div>
                     <div class="ba-side ba-after-clip">
-                        <svg viewBox="0 0 1200 675" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="background: #0d0d0d;">
+                        <svg viewBox="0 0 1200 675" width="100%" height="100%" preserveAspectRatio="xMidYMid slice" style="background: #ffffff;">
                             <pattern id="bg-grid2" width="30" height="30" patternUnits="userSpaceOnUse">
-                                <path d="M 30 0 L 0 0 0 30" stroke="#1f1f1f" stroke-width="0.5" fill="none"/>
+                                <path d="M 30 0 L 0 0 0 30" stroke="#eef2f4" stroke-width="0.5" fill="none"/>
                             </pattern>
                             <rect width="1200" height="675" fill="url(#bg-grid2)"/>
-                            <g stroke="#333" stroke-width="1" fill="none">
+                            <g stroke="#e5e7eb" stroke-width="1" fill="none">
                                 <path d="M 100 100 L 1100 100 L 1100 575 L 100 575 Z"/>
                             </g>
-                            <!-- Processed dots -->
                             <g id="afterDots"></g>
-                            <g font-family="JetBrains Mono, monospace" font-size="11" fill="#4ADE80">
-                                <text x="120" y="640">// MAPA DE VEGETACAO &middot; 18 ESPECIES &middot; 156 ITENS DETECTADOS</text>
+                            <g font-family="ui-monospace, monospace" font-size="11" fill="#0098f2">
+                                <text x="120" y="640">MAPA DE VEGETACAO &middot; 18 ESPECIES &middot; 156 ITENS DETECTADOS</text>
                             </g>
                         </svg>
                     </div>
@@ -810,10 +1020,10 @@
     </section>
 
     <!-- HOW IT WORKS -->
-    <section id="funciona">
+    <section id="funciona" class="section-cream">
         <div class="container">
             <div class="center reveal">
-                <span class="eyebrow">// como funciona</span>
+                <span class="eyebrow">Como funciona</span>
                 <h2 class="section-title">Quatro passos. Sem manual.</h2>
                 <p class="section-sub">Pensado para arquitetos paisagistas, agronomos e equipes de obra.</p>
             </div>
@@ -843,10 +1053,10 @@
     </section>
 
     <!-- FEATURES -->
-    <section style="background: var(--bg2);">
+    <section>
         <div class="container">
             <div class="center reveal">
-                <span class="eyebrow">// recursos</span>
+                <span class="eyebrow">Recursos</span>
                 <h2 class="section-title">Tudo o que esta incluso</h2>
                 <p class="section-sub">Nenhum passo extra. Tudo o que voce ve abaixo acontece em uma unica execucao.</p>
             </div>
@@ -886,10 +1096,10 @@
     </section>
 
     <!-- SPECIES GALLERY -->
-    <section id="especies">
+    <section id="especies" class="section-cream">
         <div class="container">
             <div class="center reveal">
-                <span class="eyebrow">// banco de especies</span>
+                <span class="eyebrow">Banco de especies</span>
                 <h2 class="section-title">326 especies catalogadas</h2>
                 <p class="section-sub">Banco proprio de fotos e dados taxonomicos cobre arvores nativas e exoticas, palmeiras, frutiferas, arbustos, forracoes, aquaticas e materiais de paisagismo.</p>
             </div>
@@ -906,10 +1116,10 @@
     </section>
 
     <!-- OUTPUTS -->
-    <section id="entregaveis" style="background: var(--bg2);">
+    <section id="entregaveis">
         <div class="container">
             <div class="center reveal">
-                <span class="eyebrow">// entregaveis</span>
+                <span class="eyebrow">Entregaveis</span>
                 <h2 class="section-title">Dois formatos. Pronto para entrega.</h2>
                 <p class="section-sub">O resultado pode ser exportado nos dois formatos &mdash; cliente e equipe interna ficam servidos no mesmo processamento.</p>
             </div>
@@ -939,10 +1149,10 @@
     </section>
 
     <!-- FAQ -->
-    <section id="faq">
+    <section id="faq" class="section-cream">
         <div class="container-narrow">
             <div class="center reveal">
-                <span class="eyebrow">// faq</span>
+                <span class="eyebrow">FAQ</span>
                 <h2 class="section-title">Perguntas frequentes</h2>
             </div>
             <div class="faq reveal">
@@ -978,13 +1188,14 @@
     <section class="cta-final">
         <div class="container-narrow reveal">
             <h2 class="section-title">Pronto para gerar seu primeiro mapa?</h2>
-            <p class="section-sub center" style="margin-bottom: 32px;">Abra o app, envie o PDF do projeto e receba os entregaveis em minutos.</p>
+            <p class="section-sub center" style="margin-bottom: 40px;">Abra o app, envie o PDF do projeto e receba os entregaveis em minutos.</p>
             <a href="/app" class="btn btn-primary btn-lg">Abrir o App &nbsp;&rarr;</a>
+            <div class="caveat tagline-pill" style="margin-top: 32px;">leva menos de um minuto.</div>
         </div>
     </section>
 
     <footer>
-        <div>// Mapa de Vegetacao &middot; Paisagismo Tecnico</div>
+        <div class="credit">Mapa de Vegetacao &middot; Paisagismo Tecnico</div>
         <div><a href="/app">Abrir App</a> &nbsp;&middot;&nbsp; <a href="#top">Topo</a></div>
     </footer>
 
@@ -1058,7 +1269,8 @@
         const demoStage = document.getElementById('demoStage');
         const demoUrl = document.getElementById('demoUrl');
         const demoSteps = document.querySelectorAll('.demo-step');
-        const PALETTE = ['#E91E63','#4CAF50','#2196F3','#FF9800','#9C27B0','#00BCD4','#F44336','#8BC34A','#3F51B5','#FFEB3B','#795548','#607D8B','#FF5722','#009688','#673AB7'];
+        // Acctual-aligned palette: Sky Teal primary + accents (Hot Pink, Vivid Violet) + neutral inks
+        const PALETTE = ['#0098f2','#6d56fc','#f200ca','#0d111b','#0098f2','#6d56fc','#0d111b','#f200ca','#0098f2','#6d56fc','#0d111b','#f200ca','#0098f2','#6d56fc','#0d111b'];
         const seedRand = (s) => { let x = Math.sin(s) * 10000; return x - Math.floor(x); };
         const dots = Array.from({length: 64}, (_, i) => ({
             x: 80 + seedRand(i+1) * (window.innerWidth > 700 ? 900 : 580),
@@ -1070,17 +1282,17 @@
             upload: () => `
                 <svg viewBox="0 0 1000 540" width="100%" height="100%">
                     <g class="upload-anim">
-                        <rect x="350" y="180" width="300" height="180" rx="14" fill="none" stroke="#262626" stroke-width="2" stroke-dasharray="8 6"/>
+                        <rect x="350" y="180" width="300" height="180" rx="14" fill="none" stroke="#d8dde3" stroke-width="2" stroke-dasharray="8 6"/>
                         <g transform="translate(500 260)">
-                            <text text-anchor="middle" fill="#666" font-size="42" dy="-18">&#128229;</text>
-                            <text text-anchor="middle" fill="#999" font-family="JetBrains Mono, monospace" font-size="11" dy="32">arraste o PDF aqui</text>
+                            <text text-anchor="middle" fill="#8d8d8d" font-size="42" dy="-18">&#128229;</text>
+                            <text text-anchor="middle" fill="#8d8d8d" font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" dy="32">arraste o PDF aqui</text>
                         </g>
                         <g transform="translate(500 460)" opacity="0.9">
-                            <rect x="-110" y="-22" width="220" height="44" rx="10" fill="#fafafa">
+                            <rect x="-110" y="-22" width="220" height="44" rx="100" fill="#ffffff" stroke="#e5e7eb">
                                 <animate attributeName="y" values="-280;-22" dur="2.4s" repeatCount="indefinite"/>
                             </rect>
                             <g style="transform-origin: center;">
-                                <text x="0" y="6" text-anchor="middle" font-size="13" font-weight="700" fill="#222" font-family="Inter, sans-serif">
+                                <text x="0" y="6" text-anchor="middle" font-size="13" font-weight="500" fill="#0f0f0f" font-family="Inter, sans-serif">
                                     <animate attributeName="y" values="-258;6" dur="2.4s" repeatCount="indefinite"/>
                                     projeto-paisagismo.pdf
                                 </text>
@@ -1092,68 +1304,67 @@
                 const visible = (i) => `<animate attributeName="opacity" from="0" to="1" begin="${i*0.04}s" dur="0.3s" fill="freeze"/>`;
                 return `
                 <svg viewBox="0 0 1000 540" width="100%" height="100%">
-                    <g stroke="#1f1f1f" stroke-width="0.5" fill="none">
-                        <path d="M 80 60 H 920 V 480 H 80 Z" stroke="#333"/>
+                    <g stroke="#e5e7eb" stroke-width="0.5" fill="none">
+                        <path d="M 80 60 H 920 V 480 H 80 Z" stroke="#d8dde3"/>
                     </g>
                     <g>
-                        <rect x="80" y="60" width="60" height="420" fill="#4ADE80" fill-opacity="0.15">
+                        <rect x="80" y="60" width="60" height="420" fill="#0098f2" fill-opacity="0.10">
                             <animate attributeName="x" values="80;860" dur="1.6s" repeatCount="indefinite"/>
                         </rect>
-                        <line stroke="#4ADE80" stroke-width="2" y1="60" y2="480" x1="140" x2="140" filter="url(#glow)">
+                        <line stroke="#0098f2" stroke-width="2" y1="60" y2="480" x1="140" x2="140">
                             <animate attributeName="x1" values="140;920" dur="1.6s" repeatCount="indefinite"/>
                             <animate attributeName="x2" values="140;920" dur="1.6s" repeatCount="indefinite"/>
                         </line>
                     </g>
-                    <defs><filter id="glow"><feGaussianBlur stdDeviation="3"/></filter></defs>
                     <g>${dots.slice(0, 50).map((d, i) => `
                         <g opacity="0">${visible(i)}
-                            <circle cx="${d.x}" cy="${d.y}" r="${d.r + 2}" fill="${d.color}" fill-opacity="0.25"/>
+                            <circle cx="${d.x}" cy="${d.y}" r="${d.r + 2}" fill="${d.color}" fill-opacity="0.20"/>
                             <circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}"/>
                         </g>`).join('')}
                     </g>
-                    <g font-family="JetBrains Mono, monospace" font-size="11" fill="#999">
-                        <text x="100" y="510">&gt; analisando_pdf.py &middot; pagina 04/12 &middot; <tspan fill="#4ADE80">156 itens detectados</tspan></text>
+                    <g font-family="ui-sans-serif, system-ui, sans-serif" font-size="11" fill="#8d8d8d">
+                        <text x="100" y="510">analisando_pdf.py &middot; pagina 04/12 &middot; <tspan fill="#0098f2" font-weight="500">156 itens detectados</tspan></text>
                     </g>
                 </svg>`;
             },
             map: () => `
                 <svg viewBox="0 0 1000 540" width="100%" height="100%">
                     <pattern id="grid-d" width="24" height="24" patternUnits="userSpaceOnUse">
-                        <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#1f1f1f" stroke-width="0.5"/>
+                        <path d="M 24 0 L 0 0 0 24" fill="none" stroke="#eef2f4" stroke-width="0.5"/>
                     </pattern>
                     <rect width="1000" height="540" fill="url(#grid-d)"/>
-                    <path d="M 80 60 H 920 V 480 H 80 Z" stroke="#333" stroke-width="1" fill="none"/>
+                    <path d="M 80 60 H 920 V 480 H 80 Z" stroke="#d8dde3" stroke-width="1" fill="none"/>
                     <g>${dots.map((d, i) => `
                         <g>
-                            <circle cx="${d.x}" cy="${d.y}" r="${d.r + 3}" fill="${d.color}" fill-opacity="0.2">
+                            <circle cx="${d.x}" cy="${d.y}" r="${d.r + 3}" fill="${d.color}" fill-opacity="0.18">
                                 <animate attributeName="r" values="${d.r + 3};${d.r + 8};${d.r + 3}" dur="2s" repeatCount="indefinite" begin="${i*0.05}s"/>
-                                <animate attributeName="fill-opacity" values="0.2;0;0.2" dur="2s" repeatCount="indefinite" begin="${i*0.05}s"/>
+                                <animate attributeName="fill-opacity" values="0.18;0;0.18" dur="2s" repeatCount="indefinite" begin="${i*0.05}s"/>
                             </circle>
                             <circle cx="${d.x}" cy="${d.y}" r="${d.r}" fill="${d.color}"/>
                         </g>`).join('')}
                     </g>
-                    <g transform="translate(700 80)" font-family="JetBrains Mono, monospace">
-                        <rect x="-12" y="-20" width="220" height="180" rx="10" fill="#141414" stroke="#262626"/>
-                        <text x="0" y="0" font-size="9" fill="#666" letter-spacing="2">LEGENDA</text>
+                    <g transform="translate(700 80)" font-family="Inter, sans-serif">
+                        <rect x="-12" y="-20" width="220" height="180" rx="16" fill="#ffffff" stroke="#e5e7eb"/>
+                        <text x="0" y="0" font-size="10" fill="#8d8d8d" letter-spacing="1.5" font-family="ui-sans-serif, system-ui, sans-serif">LEGENDA</text>
                         ${PALETTE.slice(0, 8).map((c, i) => `
                             <g transform="translate(0 ${20 + i*18})">
                                 <circle cx="6" cy="0" r="5" fill="${c}"/>
-                                <text x="20" y="3" font-size="10" fill="#999">SP${(i+1).toString().padStart(2,'0')}</text>
-                                <text x="180" y="3" font-size="10" fill="#fff" text-anchor="end">${Math.floor(seedRand(i+10)*30+5)}</text>
+                                <text x="20" y="3" font-size="11" fill="#1e1e1e" font-weight="400">SP${(i+1).toString().padStart(2,'0')}</text>
+                                <text x="180" y="3" font-size="11" font-weight="500" fill="#000000" text-anchor="end">${Math.floor(seedRand(i+10)*30+5)}</text>
                             </g>`).join('')}
                     </g>
                 </svg>`,
             export: () => `
                 <svg viewBox="0 0 1000 540" width="100%" height="100%">
                     <g transform="translate(180 120)">
-                        <rect x="0" y="0" width="280" height="320" rx="14" fill="#141414" stroke="#262626"/>
-                        <rect x="0" y="0" width="280" height="36" fill="#1c1c1c"/>
+                        <rect x="0" y="0" width="280" height="320" rx="20" fill="#ffffff" stroke="#e5e7eb"/>
+                        <rect x="0" y="0" width="280" height="36" fill="#f7fafc"/>
                         <circle cx="14" cy="18" r="4" fill="#ff5f57"/>
                         <circle cx="28" cy="18" r="4" fill="#febc2e"/>
                         <circle cx="42" cy="18" r="4" fill="#28c840"/>
-                        <text x="140" y="22" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#666">mapa.html</text>
+                        <text x="140" y="22" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#8d8d8d">mapa.html</text>
                         <pattern id="g-x" width="14" height="14" patternUnits="userSpaceOnUse">
-                            <path d="M 14 0 L 0 0 0 14" fill="none" stroke="#1f1f1f" stroke-width="0.5"/>
+                            <path d="M 14 0 L 0 0 0 14" fill="none" stroke="#eef2f4" stroke-width="0.5"/>
                         </pattern>
                         <rect x="14" y="50" width="252" height="240" fill="url(#g-x)"/>
                         ${dots.slice(0, 28).map(d => {
@@ -1161,25 +1372,25 @@
                             const y = 50 + (d.y / 540) * 240;
                             return `<circle cx="${x}" cy="${y}" r="3" fill="${d.color}"/>`;
                         }).join('')}
-                        <text x="140" y="306" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#4ADE80">HTML INTERATIVO</text>
+                        <text x="140" y="306" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#0098f2">HTML INTERATIVO</text>
                     </g>
                     <g transform="translate(540 120)">
-                        <rect x="0" y="0" width="280" height="320" rx="14" fill="#fafafa"/>
-                        <rect x="0" y="0" width="280" height="36" fill="#f0f0f0"/>
-                        <text x="140" y="22" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#999">apresentacao.pdf</text>
-                        <text x="20" y="74" font-family="Inter, sans-serif" font-size="9" fill="#999" letter-spacing="2">APRESENTACAO EXECUTIVA</text>
-                        <text x="20" y="100" font-family="Inter, sans-serif" font-size="18" font-weight="800" fill="#111">Tibouchina granulosa</text>
-                        <text x="20" y="118" font-family="Inter, sans-serif" font-size="11" fill="#666">Quaresmeira &middot; Arvore</text>
-                        <rect x="20" y="138" width="100" height="100" rx="6" fill="#e5e5e5"/>
+                        <rect x="0" y="0" width="280" height="320" rx="20" fill="#ffffff" stroke="#e5e7eb"/>
+                        <rect x="0" y="0" width="280" height="36" fill="#f7fafc"/>
+                        <text x="140" y="22" text-anchor="middle" font-family="ui-sans-serif, system-ui, sans-serif" font-size="10" fill="#8d8d8d">apresentacao.pdf</text>
+                        <text x="20" y="74" font-family="ui-sans-serif, system-ui, sans-serif" font-size="9" fill="#8d8d8d" letter-spacing="2">APRESENTACAO EXECUTIVA</text>
+                        <text x="20" y="100" font-family="Inter, sans-serif" font-size="18" font-weight="600" fill="#000000" letter-spacing="-0.3">Tibouchina granulosa</text>
+                        <text x="20" y="118" font-family="Inter, sans-serif" font-size="11" fill="#8d8d8d">Quaresmeira &middot; Arvore</text>
+                        <rect x="20" y="138" width="100" height="100" rx="12" fill="#f7fafc"/>
                         <text x="70" y="195" text-anchor="middle" font-size="32">&#127794;</text>
                         ${[['Quantidade','12'],['Cor mapa', null],['Origem','Brasil']].map((kv, i) => `
                             <g transform="translate(140 ${150 + i*22})">
-                                <text x="0" y="0" font-size="9" fill="#666" font-family="Inter, sans-serif">${kv[0]}</text>
-                                ${kv[1] ? `<text x="120" y="0" text-anchor="end" font-size="10" font-weight="700" fill="#111" font-family="Inter, sans-serif">${kv[1]}</text>`
-                                    : `<rect x="108" y="-10" width="14" height="14" rx="3" fill="${PALETTE[1]}"/>`}
-                                <line x1="0" y1="6" x2="120" y2="6" stroke="#eee"/>
+                                <text x="0" y="0" font-size="10" fill="#8d8d8d" font-family="Inter, sans-serif">${kv[0]}</text>
+                                ${kv[1] ? `<text x="120" y="0" text-anchor="end" font-size="11" font-weight="600" fill="#000000" font-family="Inter, sans-serif">${kv[1]}</text>`
+                                    : `<rect x="108" y="-10" width="14" height="14" rx="3" fill="#0098f2"/>`}
+                                <line x1="0" y1="6" x2="120" y2="6" stroke="#eef2f4"/>
                             </g>`).join('')}
-                        <text x="140" y="306" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="700" fill="#FB923C">PDF EXECUTIVO</text>
+                        <text x="140" y="306" text-anchor="middle" font-family="Inter, sans-serif" font-size="11" font-weight="600" fill="#6d56fc">PDF EXECUTIVO</text>
                     </g>
                 </svg>`,
         };
@@ -1195,7 +1406,6 @@
             demoUrl.textContent = URLS[step];
         };
         demoSteps.forEach(b => b.addEventListener('click', () => setStep(b.dataset.step)));
-        // auto-cycle
         let stepIdx = 0;
         const stepKeys = ['upload', 'parse', 'map', 'export'];
         let cycleTimer = null;
@@ -1218,7 +1428,6 @@
         // ---------- BEFORE / AFTER SLIDER ----------
         const baWrap = document.getElementById('baWrap');
         const afterDots = baWrap.querySelector('#afterDots');
-        // Build map dots for the after side
         const baSeeded = Array.from({length: 156}, (_, i) => ({
             x: 110 + seedRand(i*11) * 980,
             y: 110 + seedRand(i*17) * 440,
@@ -1239,7 +1448,6 @@
         baWrap.addEventListener('touchstart', (e) => { baDragging = true; setBaPos(e.touches[0].clientX); }, { passive: true });
         baWrap.addEventListener('touchmove', (e) => { if (baDragging) setBaPos(e.touches[0].clientX); }, { passive: true });
         window.addEventListener('touchend', () => { baDragging = false; });
-        // auto-tease on scroll into view
         const baIO = new IntersectionObserver((entries) => {
             entries.forEach(e => {
                 if (!e.isIntersecting) return;
@@ -1264,7 +1472,7 @@
         const gallerySearch = document.getElementById('gallerySearch');
         const loadMoreBtn = document.getElementById('loadMoreBtn');
         let allSpecies = [];
-        let speciesData = {}; // code -> { nome_popular, nome_cientifico, ... }
+        let speciesData = {};
         let displayed = 0;
         const PAGE = 24;
 
@@ -1282,7 +1490,7 @@
                 galleryGrid.appendChild(div);
             }
             const total = filtered.length;
-            galleryMeta.textContent = `// ${limit} de ${total} especies`;
+            galleryMeta.textContent = `${limit} de ${total} especies`;
             loadMoreBtn.style.display = limit < total ? '' : 'none';
         };
 
@@ -1293,7 +1501,7 @@
                 displayed = PAGE;
                 renderBatch('');
             })
-            .catch(() => { galleryMeta.textContent = '// erro ao carregar manifesto'; });
+            .catch(() => { galleryMeta.textContent = 'erro ao carregar manifesto'; });
 
         fetch('/api/species')
             .then(r => r.ok ? r.json() : Promise.reject())
